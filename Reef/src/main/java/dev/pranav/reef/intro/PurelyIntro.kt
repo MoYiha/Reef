@@ -83,13 +83,13 @@ class PurelyIntro : AppIntro2() {
                     val mode =
                         (getSystemService(APP_OPS_SERVICE) as AppOpsManager).let {
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                                @Suppress("DEPRECATION")
                                 it.unsafeCheckOpNoThrow(
                                     AppOpsManager.OPSTR_GET_USAGE_STATS,
                                     Process.myUid(),
                                     packageName
                                 )
                             } else {
-                                @Suppress("DEPRECATION")
                                 it.checkOpNoThrow(
                                     AppOpsManager.OPSTR_GET_USAGE_STATS,
                                     Process.myUid(),

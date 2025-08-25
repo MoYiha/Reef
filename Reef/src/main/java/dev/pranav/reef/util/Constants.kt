@@ -7,7 +7,3 @@ lateinit var prefs: SharedPreferences
 
 val isPrefsInitialized: Boolean
     get() = ::prefs.isInitialized
-
-enum class Mode {
-    EAST, MIDDLE, HARD
-}

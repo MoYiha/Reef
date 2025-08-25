@@ -17,7 +17,6 @@ import dev.pranav.reef.util.isAccessibilityServiceEnabledForBlocker
 import dev.pranav.reef.util.prefs
 import dev.pranav.reef.util.showAccessibilityDialog
 
-
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private var pendingFocusModeStart = false

@@ -12,7 +12,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         app:icon="@drawable/baseline_play_arrow_24"
-        app:iconSize="80dp"
+        app:iconSize="90dp"
         app:iconTint="?colorOnSurfaceVariant"
         app:shapeAppearanceOverlay="@style/ShapeAppearance.Material3.Corner.ExtraLarge" />
 

@@ -34,9 +34,12 @@ fun Activity.showUsageAccessDialog(onAgreeClick: () -> Unit) {
 
 fun Context.isAccessibilityServiceEnabledForBlocker(): Boolean {
     val accessibilityServiceName = "$packageName/$packageName.accessibility.BlockerService"
+    val serviceNameUncommon = "$packageName/.accessibility.BlockerService"
     val enabledServices = Settings.Secure.getString(
         contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
     )
-    return enabledServices?.contains(accessibilityServiceName) == true
+    return (enabledServices?.contains(accessibilityServiceName) == true) || (enabledServices?.contains(
+        serviceNameUncommon
+    ) == true)
 }
 
