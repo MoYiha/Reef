@@ -2,7 +2,6 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
 }
 
 android {
@@ -13,11 +12,11 @@ android {
         applicationId = "dev.pranav.reef"
         minSdk = 26
         targetSdk = 36
-        versionCode = 6
-        versionName = "1.1.1"
+        versionCode = 7
+        versionName = "1.2.0"
     }
 
-    viewBinding.isEnabled = true
+    viewBinding.enable = true
 
     buildFeatures.buildConfig = true
 

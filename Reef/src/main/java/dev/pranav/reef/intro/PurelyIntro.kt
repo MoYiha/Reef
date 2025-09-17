@@ -19,6 +19,7 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import com.github.appintro.AppIntro2
 import com.github.appintro.AppIntroPageTransformerType
+import com.google.android.material.color.DynamicColors
 import com.google.android.material.color.MaterialColors
 import dev.pranav.reef.R
 import dev.pranav.reef.util.CHANNEL_ID
@@ -31,16 +32,22 @@ class PurelyIntro : AppIntro2() {
     @SuppressLint("BatteryLife")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Apply dynamic colors to the entire activity, if available
+        DynamicColors.applyIfAvailable(this)
+
         isIndicatorEnabled = true
         isWizardMode = true
         isSystemBackButtonLocked = true
         setImmersiveMode()
 
+        // Use M3 color tokens for indicators
         setIndicatorColor(
             selectedIndicatorColor = MaterialColors.getColor(
-                this, com.google.android.material.R.attr.colorError, null
-            ), unselectedIndicatorColor = MaterialColors.getColor(
-                this, com.google.android.material.R.attr.colorPrimaryContainer, null
+                this, com.google.android.material.R.attr.colorPrimaryFixed, null
+            ),
+            unselectedIndicatorColor = MaterialColors.getColor(
+                this, com.google.android.material.R.attr.colorSurfaceVariant, null
             )
         )
         setTransformer(AppIntroPageTransformerType.Fade)
@@ -53,10 +60,12 @@ class PurelyIntro : AppIntro2() {
             )
         )
         addSlide(
-            DetailsFragment(title = getString(R.string.accessibility_service),
+            DetailsFragment(
+                title = getString(R.string.accessibility_service),
                 description = getString(R.string.accessibility_service_description),
                 listener = { showAccessibilityDialog() },
-                isTaskCompleted = { isAccessibilityServiceEnabledForBlocker() })
+                isTaskCompleted = { isAccessibilityServiceEnabledForBlocker() }
+            )
         )
         val statsResult =
             registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
@@ -102,7 +111,6 @@ class PurelyIntro : AppIntro2() {
                     } else {
                         mode == AppOpsManager.MODE_ALLOWED
                     }
-
                     granted
                 }
             )
@@ -122,7 +130,8 @@ class PurelyIntro : AppIntro2() {
                 }
 
             addSlide(
-                DetailsFragment(title = getString(R.string.notification_permission),
+                DetailsFragment(
+                    title = getString(R.string.notification_permission),
                     description = getString(R.string.notification_permission_description),
                     listener = {
                         runOnUiThread {

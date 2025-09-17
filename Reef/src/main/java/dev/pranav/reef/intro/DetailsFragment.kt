@@ -18,14 +18,15 @@ class DetailsFragment(
 ) : Fragment(),
     SlidePolicy {
 
-    private lateinit var binding: IntroDetailsBinding
+    private var _binding: IntroDetailsBinding? = null
+    private val binding get() = _binding!!
 
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-        binding = IntroDetailsBinding.inflate(inflater, container, false)
+        _binding = IntroDetailsBinding.inflate(inflater, container, false)
         return binding.root
     }
 
@@ -33,12 +34,14 @@ class DetailsFragment(
         super.onViewCreated(view, savedInstanceState)
 
         binding.apply {
+            // Apply M3 typography and colors dynamically
+            title.text = this@DetailsFragment.title
+            description.text = this@DetailsFragment.description
+
             if (imageRes != 0) {
                 image.visibility = View.VISIBLE
                 image.setImageResource(imageRes)
             }
-            title.text = this@DetailsFragment.title
-            description.text = this@DetailsFragment.description
         }
     }
 
@@ -47,5 +50,10 @@ class DetailsFragment(
 
     override fun onUserIllegallyRequestedNextPage() {
         listener()
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        _binding = null
     }
 }
