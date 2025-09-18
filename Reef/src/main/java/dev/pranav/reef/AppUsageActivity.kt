@@ -15,7 +15,6 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
-import com.google.android.material.snackbar.Snackbar
 import com.google.android.material.transition.platform.MaterialSharedAxis
 import dev.pranav.reef.databinding.ActivityUsageBinding
 import dev.pranav.reef.databinding.AppUsageItemBinding
@@ -61,7 +60,6 @@ class AppUsageActivity : AppCompatActivity() {
     }
 
     private fun loadUsageStats() {
-        // Use coroutines to fetch data off the main thread
         lifecycleScope.launch(Dispatchers.IO) {
             val usageStatsManager = getSystemService(USAGE_STATS_SERVICE) as UsageStatsManager
             val launcherApps = getSystemService(LAUNCHER_APPS_SERVICE) as LauncherApps
@@ -71,26 +69,21 @@ class AppUsageActivity : AppCompatActivity() {
 
             val filteredAppUsageStats = appUsageStats
                 .asSequence()
-                .filter { it.totalTimeInForeground > 5 * 1000 }
+                .filter { it.totalTimeInForeground > 5 * 1000 && it.packageName != packageName }
                 .mapNotNull { stats ->
-                    // Use mapNotNull to safely handle cases where app info might be null
                     launcherApps.getApplicationInfo(stats.packageName, 0, Process.myUserHandle())
                         ?.let { appInfo -> Stats(appInfo, stats) }
                 }
                 .toList()
 
             withContext(Dispatchers.Main) {
-                adapter.setMaxUsage(maxUsage) // Pass the max usage for the progress bar
+                adapter.setMaxUsage(maxUsage)
                 adapter.submitList(filteredAppUsageStats)
             }
         }
     }
 
     private fun onAppItemClicked(stats: Stats) {
-        if (stats.applicationInfo.packageName == packageName) {
-            Snackbar.make(binding.root, "Cannot set limit for Reef", Snackbar.LENGTH_SHORT).show()
-            return
-        }
         val intent = Intent(this, ApplicationDailyLimitActivity::class.java).apply {
             putExtra("package_name", stats.applicationInfo.packageName)
         }

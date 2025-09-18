@@ -1,79 +1,87 @@
-# <img src="Reef/src/main/ic_launcher-playstore.png" width="40" alt="Reef Logo">   Reef - Focus and Productivity
-
 <div align="center">
+
+# Reef - Your Digital Sanctuary for Focus
+
+<img src="Reef/src/main/ic_launcher-playstore.png" width="90" alt="Reef Logo">
+
+**Transform your phone from a distraction machine into a productivity powerhouse.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Google Play](https://img.shields.io/badge/Google_Play-Download-green.svg)](https://play.google.com/store/apps/details?id=dev.pranav.reef)
 [![Donate](https://img.shields.io/badge/Donate-PayPal-yellow.svg)](https://paypal.me/pranavpurwar)
-[![RB Status](https://shields.rbtlog.dev/simple/dev.pranav.reef)](https://shields.rbtlog.dev/dev.pranav.reef)
-
-**Transform your phone from a distraction machine into a productivity powerhouse**
 
 </div>
+
+---
+
+## 📸 Screenshots
+
+<div align="center">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/01.png" width="200" alt="Home Screen"/>
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/08.png" width="200" alt="Focus Times"/>
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/09.png" width="200" alt="App Blocking"/>
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/03.png" width="200" alt="App Usage Insights"/>
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/04.png" width="200" alt="Routines"/>
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/05.png" width="200" alt="Create Routine"/>
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/06.png" width="200" alt="App Usage Limit"/>
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/07.png" width="200" alt="Whitelist apps"/>
+</div>
+
+<br>
+
+<div align="center">
+  <img src="screenshots/limit.webp" width="200" alt="App Limits"/>
+  <img src="screenshots/blocked.png" width="200" alt="Blocked App"/>
+  <img src="screenshots/timer.webp" width="200" alt="Custom Timer"/>
+</div>
+
+---
 
 ## 🌊 Reclaim Your Focus
 
-Endless scrolling? Constant notifications? App hopping? **Reef** creates a sanctuary of focus in
-your digital life.
+Tired of constant notifications and mindless scrolling? **Reef** is the modern solution for a
+distracted world, helping you regain control and build lasting focus.
 
-> "The ability to focus is the new superpower in today's distracted world."
+---
 
-## ✨ What Makes Reef Different
+## 🚀 Key Features
 
-- **Truly Effective Blocking** - No loopholes, no "just one more minute"
-- **Smart Usage Insights** - Understand your habits, not just limit them
-- **Beautiful, Minimal Design** - Focus on what matters, not the tool itself
-- **Zero Data Collection** - Your digital habits remain private to you
-- **Actively Maintained** - Regular updates and new features
+* **Robust Blocking:** A robust blocking mechanism for pure, uninterrupted focus.
+* **Actionable Insights:** Intelligent usage statistics to help you understand and change your
+  digital habits.
+* **Routine-Based Limiting:** Schedule app limits for specific days and times (e.g., 3-5 PM on
+  Wednesdays).
+* **Privacy First:** A strict no-data-collection policy ensures your habits remain completely
+  private.
+* **Minimal Design:** A clean, intuitive UI with **Material You Expressive** integration that keeps
+  your focus on your tasks.
+* **Custom Whitelist:** Allow essential tools (like a calendar or notes app) to remain accessible
+  during focus sessions.
+* **Flexible Timers:** Customize work intervals to match your personal concentration style.
 
-## 📱 Screenshots
-
-<div align="center">
-  <table>
-    <tr>
-      <td><img src="screenshots/home.webp" width="180" alt="Home Screen"/><br><em>Simple Dashboard</em></td>
-      <td><img src="screenshots/running.webp" width="180" alt="Running Focus Session"/><br><em>Focus in Action</em></td>
-      <td><img src="screenshots/usage.webp" width="180" alt="Usage Statistics"/><br><em>Track Your Progress</em></td>
-    </tr>
-    <tr>
-      <td><img src="screenshots/limit.webp" width="180" alt="App Limits"/><br><em>Set Boundaries</em></td>
-      <td><img src="screenshots/blocked.png" width="180" alt="Blocked App"/><br><em>Stay on Track</em></td>
-      <td><img src="screenshots/timer.webp" width="180" alt="Timer"/><br><em>Customize Your Focus</em></td>
-    </tr>
-  </table>
-</div>
-
-## 🚀 Features That Matter
-
-- **Focus Mode** - Block distracting apps during dedicated work sessions
-- **App Usage Stats** - See where your time actually goes
-- **Daily App Limits** - Set healthy boundaries for addictive apps
-- **Custom Whitelist** - Allow important tools while blocking distractions
-- **Flexible Timers** - Work in intervals that match your concentration style
-- **Material You Design** - Beautiful integration with your phone's theme
-
-## 💭 From the Developer
-
-> "I built Reef because I was tired of being controlled by my phone. It's designed to be the tool I
-> wish I had when trying to focus on what really matters."
+---
 
 ## 📲 Get Started
 
-Reef is available on the Google Play Store:
+Download Reef today and start your journey toward a more focused and productive life.
 
 [<img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Play Store" height="60">](https://play.google.com/store/apps/details?id=dev.pranav.reef)
 [<img src="https://gitlab.com/IzzyOnDroid/repo/-/raw/master/assets/IzzyOnDroid.png" alt="Get it at IzzyOnDroid" height="60">](https://apt.izzysoft.de/packages/dev.pranav.reef)
 
+---
+
 ## 💖 Support the Project
 
-If Reef has helped you reclaim your focus and productivity, consider supporting ongoing development:
+If Reef has helped you, consider supporting its development. Your contribution helps us continue to
+build a powerful tool for digital well-being.
 
-[<img src="https://img.shields.io/badge/Donate_via_PayPal-00457C?style=for-the-badge&logo=paypal&logoColor=white" height="40" alt="Donate via PayPal">](https://paypal.me/pranavpurwar)
+[<img src="upi.png" alt="Donate via UPI" height="40" style="margin-right: 10px;">](upi://pay?pa=pranavpurwar@fam&pn=Donation&cu=INR)
+
+---
 
 ## 📄 License
 
-Reef is open source and available under the MIT License:
-
+Reef is open source software available under the **MIT License**.
 ```
 MIT License
 
@@ -97,4 +105,3 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
-

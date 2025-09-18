@@ -56,7 +56,7 @@ class WhitelistActivity : AppCompatActivity() {
     }
 
     private fun loadInstalledApps() {
-        binding.progressIndicator.isVisible = true
+        binding.loadingIndicator.isVisible = true
         lifecycleScope.launch(Dispatchers.IO) {
             val launcherApps = getSystemService(LAUNCHER_APPS_SERVICE) as LauncherApps
             val apps = launcherApps.getActivityList(null, android.os.Process.myUserHandle())
@@ -73,7 +73,7 @@ class WhitelistActivity : AppCompatActivity() {
                 .toList()
 
             withContext(Dispatchers.Main) {
-                binding.progressIndicator.isVisible = false
+                binding.loadingIndicator.isVisible = false
                 adapter.submitList(apps)
             }
         }

@@ -6,11 +6,16 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
 import android.os.Bundle
+import android.view.MotionEvent
 import android.view.View
 import android.view.Window
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.edit
+import androidx.dynamicanimation.animation.SpringAnimation
+import androidx.dynamicanimation.animation.SpringForce
+import androidx.transition.TransitionManager
+import com.google.android.material.transition.MaterialFadeThrough
 import com.google.android.material.transition.platform.MaterialSharedAxis
 import dev.pranav.reef.accessibility.FocusModeService
 import dev.pranav.reef.databinding.ActivityTimerBinding
@@ -41,6 +46,8 @@ class TimerActivity : AppCompatActivity() {
         applyWindowInsets(binding.root)
 
         setContentView(binding.root)
+
+        addExpressiveButtonBehavior(binding.start)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(
@@ -81,6 +88,35 @@ class TimerActivity : AppCompatActivity() {
         })
     }
 
+    private fun addExpressiveButtonBehavior(view: View) {
+        val springForce = SpringForce().apply {
+            stiffness = SpringForce.STIFFNESS_LOW
+            dampingRatio = SpringForce.DAMPING_RATIO_MEDIUM_BOUNCY
+        }
+
+        val scaleXAnimation = SpringAnimation(view, SpringAnimation.SCALE_X).setSpring(springForce)
+        val scaleYAnimation = SpringAnimation(view, SpringAnimation.SCALE_Y).setSpring(springForce)
+
+        view.setOnTouchListener { v, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    scaleXAnimation.animateToFinalPosition(0.95f)
+                    scaleYAnimation.animateToFinalPosition(0.95f)
+                }
+
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    scaleXAnimation.animateToFinalPosition(1f)
+                    scaleYAnimation.animateToFinalPosition(1f)
+                }
+
+                MotionEvent.ACTION_BUTTON_PRESS -> {
+                    v.performClick()
+                }
+            }
+            false
+        }
+    }
+
     private fun startService() {
         prefs.edit().apply {
             putBoolean("focus_mode", true)
@@ -90,6 +126,8 @@ class TimerActivity : AppCompatActivity() {
 
         val intent = Intent(this, FocusModeService::class.java)
         startForegroundService(intent)
+
+        TransitionManager.beginDelayedTransition(binding.root, MaterialFadeThrough())
         binding.start.visibility = View.GONE
         binding.picker.visibility = View.GONE
         binding.timer.visibility = View.VISIBLE
@@ -101,18 +139,21 @@ class TimerActivity : AppCompatActivity() {
         prefs.edit { putBoolean("focus_mode", false) }
     }
 
-    private val timerReceiver = object : BroadcastReceiver() {
 
+    private val timerReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             val left = intent.getStringExtra("left")
             binding.timer.text = left
 
             if (left == "00:00") {
+                val transition = MaterialFadeThrough().apply {
+                    duration = 300L
+                }
+                TransitionManager.beginDelayedTransition(binding.root, transition)
                 binding.start.visibility = View.VISIBLE
                 binding.picker.visibility = View.VISIBLE
                 binding.timer.visibility = View.GONE
                 val androidUtilities = AndroidUtilities()
-
                 androidUtilities.vibrate(context, 500)
             }
         }
