@@ -17,23 +17,22 @@
 ## 📸 Screenshots
 
 <div align="center">
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/01.png" width="200" alt="Home Screen"/>
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/08.png" width="200" alt="Focus Times"/>
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/09.png" width="200" alt="App Blocking"/>
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/03.png" width="200" alt="App Usage Insights"/>
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/04.png" width="200" alt="Routines"/>
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/05.png" width="200" alt="Create Routine"/>
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/06.png" width="200" alt="App Usage Limit"/>
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/07.png" width="200" alt="Whitelist apps"/>
-</div>
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/01.png" width="180" alt="Home Screen"/>
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/08.png" width="180" alt="Focus Times"/>
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/09.png" width="180" alt="App Blocking"/>
 
 <br>
 
-<div align="center">
-  <img src="screenshots/limit.webp" width="200" alt="App Limits"/>
-  <img src="screenshots/blocked.png" width="200" alt="Blocked App"/>
-  <img src="screenshots/timer.webp" width="200" alt="Custom Timer"/>
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/03.png" width="180" alt="App Usage Insights"/>
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/04.png" width="180" alt="Routines"/>
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/05.png" width="180" alt="Create Routine"/>
+
+<br>
+
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/06.png" width="180" alt="App Usage Limit"/>
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/07.png" width="180" alt="Whitelist apps"/>
 </div>
+
 
 ---
 
@@ -72,16 +71,17 @@ Download Reef today and start your journey toward a more focused and productive 
 
 ## 💖 Support the Project
 
-If Reef has helped you, consider supporting its development. Your contribution helps us continue to
-build a powerful tool for digital well-being.
+If Reef has helped you, consider supporting its development. Your contribution helps me continue
+building more useful and innovative features.
 
-[<img src="upi.png" alt="Donate via UPI" height="40" style="margin-right: 10px;">](upi://pay?pa=pranavpurwar@fam&pn=Donation&cu=INR)
+UPI ID: **pranavpurwar@fam**
 
 ---
 
 ## 📄 License
 
 Reef is open source software available under the **MIT License**.
+
 ```
 MIT License
 
