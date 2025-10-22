@@ -135,7 +135,7 @@ object NotificationHelper {
         )
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setContentTitle("Time Limit Reached")
+            .setContentTitle("Time Limit - Final Warning")
             .setContentText("$appName will be blocked in 5 minutes. Please finish up.")
             .setStyle(
                 NotificationCompat.BigTextStyle()
