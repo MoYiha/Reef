@@ -29,6 +29,8 @@ import dev.pranav.reef.util.prefs
 @SuppressLint("AccessibilityPolicy")
 class BlockerService : AccessibilityService() {
     private val notificationId = 2
+    private var lastCheckTime = 0L
+    private val checkInterval = 30000L // Check at most every 30 seconds for reminders
 
     override fun onServiceConnected() {
         if (!isPrefsInitialized) {
@@ -45,7 +47,10 @@ class BlockerService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
         if (event.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED ||
             event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED ||
-            event.eventType == AccessibilityEvent.TYPE_VIEW_CLICKED
+            event.eventType == AccessibilityEvent.TYPE_VIEW_CLICKED ||
+            event.eventType == AccessibilityEvent.TYPE_VIEW_FOCUSED ||
+            event.eventType == AccessibilityEvent.TYPE_VIEW_SCROLLED ||
+            event.eventType == AccessibilityEvent.TYPE_TOUCH_INTERACTION_START
         ) {
             val packageName = event.packageName?.toString() ?: return
 
@@ -69,6 +74,10 @@ class BlockerService : AccessibilityService() {
                 "Package: $packageName, className: ${event.className} hasRoutineLimit: $hasRoutineLimit, hasRegularLimit: $hasRegularLimit"
             )
 
+            // Check for reminders periodically (not on every event to save battery)
+            val currentTime = System.currentTimeMillis()
+            val shouldCheckReminders = (currentTime - lastCheckTime) > checkInterval
+
             // Check routine limits first - but verify usage time during routine period
             if (hasRoutineLimit) {
                 val usageStatsManager = getSystemService(USAGE_STATS_SERVICE) as UsageStatsManager
@@ -82,11 +91,14 @@ class BlockerService : AccessibilityService() {
                 )
 
                 // Check if we should send a reminder (10 minutes before limit)
-                val timeUntilLimit = routineLimit - routineUsageTime
-                if (timeUntilLimit in 1..REMINDER_TIME_MS && !RoutineLimits.hasRoutineReminderBeenSent(packageName)) {
-                    Log.d("BlockerService", "Sending reminder for $packageName - ${timeUntilLimit / 60000} minutes remaining")
-                    NotificationHelper.showReminderNotification(this, packageName, timeUntilLimit)
-                    RoutineLimits.markRoutineReminderSent(packageName)
+                if (shouldCheckReminders) {
+                    val timeUntilLimit = routineLimit - routineUsageTime
+                    if (timeUntilLimit in 1..REMINDER_TIME_MS && !RoutineLimits.hasRoutineReminderBeenSent(packageName)) {
+                        Log.d("BlockerService", "Sending reminder for $packageName - ${timeUntilLimit / 60000} minutes remaining")
+                        NotificationHelper.showReminderNotification(this, packageName, timeUntilLimit)
+                        RoutineLimits.markRoutineReminderSent(packageName)
+                        lastCheckTime = currentTime
+                    }
                 }
 
                 if (routineUsageTime >= routineLimit) {
@@ -134,11 +146,14 @@ class BlockerService : AccessibilityService() {
                 )
 
                 // Check if we should send a reminder (10 minutes before limit)
-                val timeUntilLimit = limit - usageTime
-                if (timeUntilLimit in 1..REMINDER_TIME_MS && !AppLimits.hasReminderBeenSent(packageName)) {
-                    Log.d("BlockerService", "Sending reminder for $packageName - ${timeUntilLimit / 60000} minutes remaining")
-                    NotificationHelper.showReminderNotification(this, packageName, timeUntilLimit)
-                    AppLimits.markReminderSent(packageName)
+                if (shouldCheckReminders) {
+                    val timeUntilLimit = limit - usageTime
+                    if (timeUntilLimit in 1..REMINDER_TIME_MS && !AppLimits.hasReminderBeenSent(packageName)) {
+                        Log.d("BlockerService", "Sending reminder for $packageName - ${timeUntilLimit / 60000} minutes remaining")
+                        NotificationHelper.showReminderNotification(this, packageName, timeUntilLimit)
+                        AppLimits.markReminderSent(packageName)
+                        lastCheckTime = currentTime
+                    }
                 }
 
                 if (usageTime >= limit) {
