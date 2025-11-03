@@ -112,11 +112,11 @@ fun AppUsageScreen(
     val maxUsage by viewModel.totalUsage
     val isLoading by viewModel.isLoading
     val range = viewModel.selectedRange
-    val sort = viewModel.selectedSort
     val isShowingAllApps by viewModel.isShowingAllApps
     val selectedDayTimestamp by viewModel.selectedDayTimestamp
     val selectedDayIndex by viewModel.selectedDayIndex
     val weekOffset by viewModel.weekOffset
+    val canGoPrevious by viewModel.canGoPrevious
 
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     var sortMenuExpanded by remember { mutableStateOf(false) }
@@ -213,6 +213,7 @@ fun AppUsageScreen(
                             onPrevWeek = { viewModel.previousWeek() },
                             onNextWeek = { viewModel.nextWeek() },
                             canGoNext = weekOffset < 0,
+                            canGoPrevious = canGoPrevious,
                             onDaySelected = { index ->
                                 viewModel.selectDayByIndex(
                                     index,
@@ -306,6 +307,7 @@ private fun HeroHeader(
     onPrevWeek: () -> Unit,
     onNextWeek: () -> Unit,
     canGoNext: Boolean,
+    canGoPrevious: Boolean,
     onDaySelected: (Int) -> Unit,
     onClearSelection: () -> Unit
 ) {
@@ -313,7 +315,8 @@ private fun HeroHeader(
 
     LaunchedEffect(weeklyData) {
         modelProducer.runTransaction {
-            columnSeries { series(weeklyData.map { it.totalUsageHours.toLong() }) }
+            // Convert hours to minutes for better precision in the chart
+            columnSeries { series(weeklyData.map { (it.totalUsageHours * 60).toLong() }) }
         }
     }
 
@@ -354,7 +357,18 @@ private fun HeroHeader(
             TimeColumnChart(
                 modelProducer,
                 Modifier.padding(horizontal = 16.dp),
-                yValueFormatter = CartesianValueFormatter { _, value, _ -> value.toTimeString() },
+                yValueFormatter = CartesianValueFormatter { _, value, _ ->
+                    // Value is now in minutes, convert to time string
+                    val totalMinutes = value.toInt()
+                    val hours = totalMinutes / 60
+                    val minutes = totalMinutes % 60
+                    when {
+                        hours > 0 && minutes > 0 -> "${hours}h ${minutes}m"
+                        hours > 0 -> "${hours}h"
+                        minutes > 0 -> "${minutes}m"
+                        else -> "0"
+                    }
+                },
                 xValueFormatter = CartesianValueFormatter { _, value, _ ->
                     val index = value.toInt()
                     if (index in weeklyData.indices) weeklyData[index].dayOfWeek.take(3) else ""
@@ -366,7 +380,7 @@ private fun HeroHeader(
                         onDaySelected(index)
                     }
                 },
-                dataValues = weeklyData.map { it.totalUsageHours },
+                dataValues = weeklyData.map { it.totalUsageHours * 60 }, // Convert to minutes
                 selectedColumnIndex = selectedDayIndex
             )
         } else {
@@ -388,14 +402,20 @@ private fun HeroHeader(
         Spacer(Modifier.height(12.dp))
 
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            IconButton(onClick = onPrevWeek) {
+            IconButton(
+                onClick = onPrevWeek,
+                enabled = canGoPrevious
+            ) {
                 Icon(
                     Icons.Filled.ChevronLeft, "Previous Week",
-                    tint = if (weeklyData.sumOf { it.totalUsageHours.toLong() } > 0)
+                    tint = if (canGoPrevious)
                         MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
                 )
             }
-            IconButton(onClick = onNextWeek) {
+            IconButton(
+                onClick = onNextWeek,
+                enabled = canGoNext
+            ) {
                 Icon(
                     Icons.Filled.ChevronRight, "Next Week",
                     tint = if (canGoNext) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant

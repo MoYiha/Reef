@@ -7,7 +7,7 @@ import android.util.Log
 import androidx.core.content.edit
 import dev.pranav.reef.accessibility.BlockerService
 import dev.pranav.reef.accessibility.FocusModeService
-import dev.pranav.reef.util.RoutineScheduler
+import dev.pranav.reef.routine.RoutineScheduler
 import dev.pranav.reef.util.isAccessibilityServiceEnabledForBlocker
 import dev.pranav.reef.util.isPrefsInitialized
 import dev.pranav.reef.util.prefs

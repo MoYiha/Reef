@@ -64,6 +64,9 @@ class AppUsageViewModel(
     private val _selectedDayIndex = mutableStateOf<Int?>(null)
     val selectedDayIndex: State<Int?> = _selectedDayIndex
 
+    private val _canGoPrevious = mutableStateOf(true)
+    val canGoPrevious: State<Boolean> = _canGoPrevious
+
     var selectedRange by mutableStateOf(UsageRange.TODAY)
         private set
 
@@ -274,11 +277,18 @@ class AppUsageViewModel(
 
     private fun generateWeeklyData(): List<WeeklyUsageData> {
         val calendar = Calendar.getInstance()
-        val daysToSubtract = (_weekOffset.value * 14) + 6
+        val daysToSubtract = (_weekOffset.value * 7) + 6
         calendar.add(Calendar.DAY_OF_YEAR, -daysToSubtract)
 
         val dayFormat = SimpleDateFormat("EEE", Locale.getDefault())
         val result = mutableListOf<WeeklyUsageData>()
+        val now = System.currentTimeMillis()
+        val todayStart = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }.timeInMillis
 
         for (i in 0 until 7) {
             val startOfDay = calendar.clone() as Calendar
@@ -286,28 +296,91 @@ class AppUsageViewModel(
             startOfDay.set(Calendar.MINUTE, 0)
             startOfDay.set(Calendar.SECOND, 0)
             startOfDay.set(Calendar.MILLISECOND, 0)
+            val dayStartMillis = startOfDay.timeInMillis
 
-            val endOfDay = startOfDay.clone() as Calendar
-            endOfDay.set(Calendar.HOUR_OF_DAY, 23)
-            endOfDay.set(Calendar.MINUTE, 59)
-            endOfDay.set(Calendar.SECOND, 59)
-            endOfDay.set(Calendar.MILLISECOND, 999)
+            // For today, use current time as end; for past days, use end of day
+            val endOfDay = if (dayStartMillis >= todayStart) {
+                // This is today - use current time
+                now
+            } else {
+                // This is a past day - use end of day
+                val end = startOfDay.clone() as Calendar
+                end.set(Calendar.HOUR_OF_DAY, 23)
+                end.set(Calendar.MINUTE, 59)
+                end.set(Calendar.SECOND, 59)
+                end.set(Calendar.MILLISECOND, 999)
+                end.timeInMillis
+            }
 
             val totalUsage = queryAppUsageEvents(
-                startOfDay.timeInMillis,
-                endOfDay.timeInMillis
+                dayStartMillis,
+                endOfDay
             ).values.sum()
 
             result.add(
                 WeeklyUsageData(
                     dayOfWeek = dayFormat.format(startOfDay.time),
                     totalUsageHours = totalUsage / (1000f * 60f * 60f),
-                    timestamp = startOfDay.timeInMillis
+                    timestamp = dayStartMillis
                 )
             )
             calendar.add(Calendar.DAY_OF_YEAR, 1)
         }
+
+        // Check if the NEXT previous week (the one we'd navigate to) has any data
+        checkPreviousWeekData()
+
         return result
+    }
+
+    private fun checkPreviousWeekData() {
+        viewModelScope.launch(Dispatchers.IO) {
+            // Calculate the start of the previous week (one week before current displayed week)
+            val calendar = Calendar.getInstance()
+            val daysToSubtract = ((_weekOffset.value - 1) * 7) + 6
+            calendar.add(Calendar.DAY_OF_YEAR, -daysToSubtract)
+
+            // Check if we're going too far back (more than 90 days)
+            val maxWeeksBack = 13 // ~3 months
+            if (_weekOffset.value <= -maxWeeksBack) {
+                withContext(Dispatchers.Main) {
+                    _canGoPrevious.value = false
+                }
+                return@launch
+            }
+
+            // Check if any day in the previous week has data
+            var hasData = false
+            for (i in 0 until 7) {
+                val startOfDay = calendar.clone() as Calendar
+                startOfDay.set(Calendar.HOUR_OF_DAY, 0)
+                startOfDay.set(Calendar.MINUTE, 0)
+                startOfDay.set(Calendar.SECOND, 0)
+                startOfDay.set(Calendar.MILLISECOND, 0)
+
+                val endOfDay = startOfDay.clone() as Calendar
+                endOfDay.set(Calendar.HOUR_OF_DAY, 23)
+                endOfDay.set(Calendar.MINUTE, 59)
+                endOfDay.set(Calendar.SECOND, 59)
+                endOfDay.set(Calendar.MILLISECOND, 999)
+
+                val totalUsage = queryAppUsageEvents(
+                    startOfDay.timeInMillis,
+                    endOfDay.timeInMillis
+                ).values.sum()
+
+                if (totalUsage > 0) {
+                    hasData = true
+                    break
+                }
+
+                calendar.add(Calendar.DAY_OF_YEAR, 1)
+            }
+
+            withContext(Dispatchers.Main) {
+                _canGoPrevious.value = hasData
+            }
+        }
     }
 
     private fun queryAppUsageEvents(start: Long, end: Long): Map<String, Long> {
@@ -318,6 +391,7 @@ class AppUsageViewModel(
 
         while (events.hasNextEvent()) {
             events.getNextEvent(event)
+
             when (event.eventType) {
                 UsageEvents.Event.ACTIVITY_RESUMED -> {
                     lastResumeTimes[event.packageName] = event.timeStamp
@@ -334,6 +408,12 @@ class AppUsageViewModel(
                 }
             }
         }
+
+        lastResumeTimes.forEach { (pkg, startTime) ->
+            val duration = end - startTime
+            usageMap[pkg] = (usageMap[pkg] ?: 0L) + duration
+        }
+
         return usageMap
     }
 }

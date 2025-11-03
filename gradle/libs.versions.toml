@@ -1,5 +1,5 @@
 [versions]
-agp = "9.0.0-alpha11"
+agp = "9.0.0-alpha13"
 appintro = "c235ce859c"
 firebaseBom = "34.4.0"
 kotlin = "2.2.20"

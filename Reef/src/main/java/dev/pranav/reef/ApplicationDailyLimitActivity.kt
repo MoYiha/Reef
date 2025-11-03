@@ -472,35 +472,34 @@ private fun getDailyUsageForLastWeek(
     packageName: String,
     usageStatsManager: UsageStatsManager
 ): List<HourlyUsageData> {
-    val endTime = System.currentTimeMillis()
-    val startTime = endTime - (7 * 24 * 60 * 60 * 1000) // 7 days ago
-
-    val stats = usageStatsManager.queryUsageStats(
-        UsageStatsManager.INTERVAL_DAILY,
-        startTime,
-        endTime
-    ).filter { it.packageName == packageName }
-
-    // Group by day
-    val dailyMap = mutableMapOf<String, Pair<Long, Long>>()
     val dateFormatter = DateTimeFormatter.ofPattern("EEE", Locale.getDefault())
+    val dailyMap = mutableMapOf<String, Pair<Long, Long>>()
 
-    stats.forEach { stat ->
-        val instant = Instant.ofEpochMilli(stat.firstTimeStamp)
-        val zonedDateTime = instant.atZone(ZoneId.systemDefault())
-        val day = zonedDateTime.format(dateFormatter)
-        val dayStart = zonedDateTime.toLocalDate().atStartOfDay(ZoneId.systemDefault()).toInstant()
-            .toEpochMilli()
+    for (dayOffset in 0 until 7) {
+        val calendar = java.util.Calendar.getInstance()
+        calendar.add(java.util.Calendar.DAY_OF_YEAR, -dayOffset)
+        calendar.set(java.util.Calendar.HOUR_OF_DAY, 0)
+        calendar.set(java.util.Calendar.MINUTE, 0)
+        calendar.set(java.util.Calendar.SECOND, 0)
+        calendar.set(java.util.Calendar.MILLISECOND, 0)
+        val dayStart = calendar.timeInMillis
 
-        val existing = dailyMap[day]
-        if (existing == null) {
-            dailyMap[day] = Pair(dayStart, stat.totalTimeInForeground)
-        } else {
-            dailyMap[day] = Pair(existing.first, existing.second + stat.totalTimeInForeground)
+        calendar.set(java.util.Calendar.HOUR_OF_DAY, 23)
+        calendar.set(java.util.Calendar.MINUTE, 59)
+        calendar.set(java.util.Calendar.SECOND, 59)
+        calendar.set(java.util.Calendar.MILLISECOND, 999)
+        val dayEnd = calendar.timeInMillis
+
+        val usageTime = queryAppUsageEventsForDay(packageName, usageStatsManager, dayStart, dayEnd)
+
+        if (usageTime > 0) {
+            val instant = Instant.ofEpochMilli(dayStart)
+            val zonedDateTime = instant.atZone(ZoneId.systemDefault())
+            val day = zonedDateTime.format(dateFormatter)
+            dailyMap[day] = Pair(dayStart, usageTime)
         }
     }
 
-    // Convert to list and sort by timestamp
     return dailyMap.map { (day, data) ->
         HourlyUsageData(
             day = day,
@@ -508,6 +507,44 @@ private fun getDailyUsageForLastWeek(
             timestamp = data.first
         )
     }.sortedBy { it.timestamp }
-        .filter { it.usageMinutes > 0 }
-        .takeLast(7) // Only show last 7 days
+}
+
+private fun queryAppUsageEventsForDay(
+    packageName: String,
+    usageStatsManager: UsageStatsManager,
+    start: Long,
+    end: Long
+): Long {
+    val events = usageStatsManager.queryEvents(start, end)
+    var totalUsage = 0L
+    var lastResumeTime: Long? = null
+    val event = android.app.usage.UsageEvents.Event()
+
+    while (events.hasNextEvent()) {
+        events.getNextEvent(event)
+
+        if (event.packageName == packageName) {
+            when (event.eventType) {
+                android.app.usage.UsageEvents.Event.ACTIVITY_RESUMED -> {
+                    lastResumeTime = event.timeStamp
+                }
+
+                android.app.usage.UsageEvents.Event.ACTIVITY_PAUSED,
+                android.app.usage.UsageEvents.Event.ACTIVITY_STOPPED -> {
+                    val startTime = lastResumeTime
+                    if (startTime != null) {
+                        val duration = event.timeStamp - startTime
+                        totalUsage += duration
+                        lastResumeTime = null
+                    }
+                }
+            }
+        }
+    }
+
+    lastResumeTime?.let {
+        totalUsage += (end - it)
+    }
+
+    return totalUsage
 }
