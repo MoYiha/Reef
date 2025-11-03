@@ -68,6 +68,7 @@ object AppLimits {
 
         while (events.hasNextEvent()) {
             events.getNextEvent(event)
+
             if (event.packageName == packageName) {
                 when (event.eventType) {
                     android.app.usage.UsageEvents.Event.ACTIVITY_RESUMED -> {

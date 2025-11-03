@@ -61,7 +61,7 @@ object RoutineLimits {
 
     fun hasRoutineLimit(packageName: String): Boolean {
         val hasLimit = routineLimits.containsKey(packageName)
-        Log.d("RoutineLimits", "Checking routine limit for $packageName: $hasLimit")
+
         return hasLimit
     }
 
@@ -74,31 +74,40 @@ object RoutineLimits {
 
         val endTime = System.currentTimeMillis()
 
-        // Query usage stats with fine-grained intervals from routine start to now
-        val stats = usageStatsManager.queryUsageStats(
-            UsageStatsManager.INTERVAL_BEST,
-            routineStartTime,
-            endTime
-        )
-
-        // Filter for the specific package and calculate usage only in this time window
-        val packageStats = stats.filter { it.packageName == packageName }
-
+        val events = usageStatsManager.queryEvents(routineStartTime, endTime)
         var totalUsage = 0L
-        packageStats.forEach { stat ->
-            // For each usage stat, calculate the overlap with our routine period
-            val statStart = stat.firstTimeStamp.coerceAtLeast(routineStartTime)
-            val statEnd = stat.lastTimeStamp.coerceAtMost(endTime)
+        var lastResumeTime: Long? = null
+        val event = android.app.usage.UsageEvents.Event()
 
-            // Only count usage that falls within the routine period
-            if (statStart < statEnd) {
-                totalUsage += stat.totalTimeInForeground
+        while (events.hasNextEvent()) {
+            events.getNextEvent(event)
+
+            if (event.packageName == packageName) {
+                when (event.eventType) {
+                    android.app.usage.UsageEvents.Event.ACTIVITY_RESUMED -> {
+                        lastResumeTime = event.timeStamp
+                    }
+
+                    android.app.usage.UsageEvents.Event.ACTIVITY_PAUSED,
+                    android.app.usage.UsageEvents.Event.ACTIVITY_STOPPED -> {
+                        val startTime = lastResumeTime
+                        if (startTime != null) {
+                            val duration = event.timeStamp - startTime
+                            totalUsage += duration
+                            lastResumeTime = null
+                        }
+                    }
+                }
             }
+        }
+
+        lastResumeTime?.let {
+            totalUsage += (endTime - it)
         }
 
         Log.d(
             "RoutineLimits",
-            "Usage time for $packageName since routine start ($routineStartTime to $endTime): $totalUsage ms (${packageStats.size} stat entries)"
+            "Usage time for $packageName since routine start ($routineStartTime to $endTime): $totalUsage ms"
         )
 
         return totalUsage
@@ -135,11 +144,62 @@ object RoutineLimits {
         routineLimits.clear()
         val allPrefs = prefs.all
 
+        Log.d("RoutineLimits", "Loading routine limits from preferences...")
+
         allPrefs.forEach { (key, value) ->
             if (key.startsWith("routine_limit_") && value is Long) {
                 val packageName = key.removePrefix("routine_limit_")
                 routineLimits[packageName] = value
+                Log.d("RoutineLimits", "Loaded limit for $packageName: $value ms")
             }
+        }
+
+        Log.d("RoutineLimits", "Loaded ${routineLimits.size} routine limits")
+
+        validateRoutineSession()
+    }
+
+    /**
+     * Validates that the stored routine session is still valid.
+     * Clears limits if the routine is stale or no longer valid.
+     */
+    private fun validateRoutineSession() {
+        val routineStartTime = prefs.getLong(ROUTINE_START_TIME_KEY, 0L)
+        val activeRoutineId = prefs.getString(ACTIVE_ROUTINE_KEY, null)
+
+        if (routineStartTime == 0L || activeRoutineId == null) {
+            Log.d("RoutineLimits", "No active routine session to validate")
+            return
+        }
+
+        Log.d("RoutineLimits", "Validating routine session for routine: $activeRoutineId")
+
+        val routine = RoutineManager.getRoutines().find { it.id == activeRoutineId }
+
+        if (routine == null || !routine.isEnabled) {
+            Log.w(
+                "RoutineLimits",
+                "Active routine not found or disabled, clearing routine limits"
+            )
+            clearRoutineLimits()
+            return
+        }
+
+        val timeSinceStart = System.currentTimeMillis() - routineStartTime
+        val maxDuration =
+            dev.pranav.reef.routine.RoutineScheduleCalculator.getMaxRoutineDuration(routine.schedule)
+
+        if (timeSinceStart > maxDuration) {
+            Log.w(
+                "RoutineLimits",
+                "Routine start time is from a previous session (${timeSinceStart}ms old, max: ${maxDuration}ms), clearing"
+            )
+            clearRoutineLimits()
+        } else {
+            Log.d(
+                "RoutineLimits",
+                "Routine session is valid (${timeSinceStart}ms old, max: ${maxDuration}ms)"
+            )
         }
     }
     

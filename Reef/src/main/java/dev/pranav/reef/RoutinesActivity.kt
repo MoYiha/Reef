@@ -61,8 +61,6 @@ import com.google.android.material.transition.platform.MaterialSharedAxis
 import dev.pranav.reef.data.Routine
 import dev.pranav.reef.data.RoutineSchedule
 import dev.pranav.reef.ui.ReefTheme
-import dev.pranav.reef.util.NotificationHelper
-import dev.pranav.reef.util.RoutineLimits
 import dev.pranav.reef.util.RoutineManager
 import dev.pranav.reef.util.applyDefaults
 import kotlinx.coroutines.launch
@@ -451,7 +449,5 @@ private fun formatTime(time: LocalTime): String {
 }
 
 private fun activateRoutineNow(routine: Routine, context: android.content.Context) {
-    val limitsMap = routine.limits.associate { it.packageName to it.limitMinutes }
-    RoutineLimits.setRoutineLimits(limitsMap, routine.id)
-    NotificationHelper.showRoutineActivatedNotification(context, routine)
+    dev.pranav.reef.routine.RoutineExecutor.activateRoutine(context, routine)
 }

@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.core.content.edit
 import dev.pranav.reef.data.Routine
 import dev.pranav.reef.data.RoutineSchedule
+import dev.pranav.reef.routine.RoutineScheduler
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.DayOfWeek
@@ -101,17 +102,17 @@ object RoutineManager {
 
             val schedule = routine.schedule
             val scheduleJson = JSONObject().apply {
-                put("type", schedule?.type?.name ?: "MANUAL")
-                schedule?.timeHour?.let { put("timeHour", it) }
-                schedule?.timeMinute?.let { put("timeMinute", it) }
-                schedule?.endTimeHour?.let { put("endTimeHour", it) }
-                schedule?.endTimeMinute?.let { put("endTimeMinute", it) }
+                put("type", schedule.type.name)
+                schedule.timeHour?.let { put("timeHour", it) }
+                schedule.timeMinute?.let { put("timeMinute", it) }
+                schedule.endTimeHour?.let { put("endTimeHour", it) }
+                schedule.endTimeMinute?.let { put("endTimeMinute", it) }
 
                 val daysArray = JSONArray()
-                schedule?.daysOfWeek?.forEach { daysArray.put(it.name) }
+                schedule.daysOfWeek.forEach { daysArray.put(it.name) }
                 put("daysOfWeek", daysArray)
 
-                put("isRecurring", schedule?.isRecurring ?: true)
+                put("isRecurring", schedule.isRecurring)
             }
             put("schedule", scheduleJson)
 
@@ -155,18 +156,36 @@ object RoutineManager {
         val index = routines.indexOfFirst { it.id == routineId }
         if (index != -1) {
             val oldRoutine = routines[index]
-            routines[index] = oldRoutine.copy(isEnabled = !oldRoutine.isEnabled)
+            val newRoutine = oldRoutine.copy(isEnabled = !oldRoutine.isEnabled)
+            routines[index] = newRoutine
 
             context?.let { ctx ->
                 if (oldRoutine.isEnabled) {
-                    RoutineScheduler.cancelRoutine(ctx, routineId)
-
-                    val activeRoutineId = RoutineLimits.getActiveRoutineId()
-                    if (activeRoutineId == routineId) {
-                        RoutineLimits.clearRoutineLimits()
+                    // Toggling OFF
+                    if (oldRoutine.schedule.type == RoutineSchedule.ScheduleType.MANUAL) {
+                        // For manual routines, just deactivate
+                        val activeRoutineId = RoutineLimits.getActiveRoutineId()
+                        if (activeRoutineId == routineId) {
+                            RoutineLimits.clearRoutineLimits()
+                            NotificationHelper.showRoutineDeactivatedNotification(ctx, oldRoutine)
+                        }
+                    } else {
+                        // For scheduled routines, cancel alarms and clear if active
+                        RoutineScheduler.cancelRoutine(ctx, routineId)
+                        val activeRoutineId = RoutineLimits.getActiveRoutineId()
+                        if (activeRoutineId == routineId) {
+                            RoutineLimits.clearRoutineLimits()
+                        }
                     }
                 } else {
-                    RoutineScheduler.scheduleRoutine(ctx, routines[index])
+                    // Toggling ON
+                    if (newRoutine.schedule.type == RoutineSchedule.ScheduleType.MANUAL) {
+                        // For manual routines, activate immediately
+                        dev.pranav.reef.routine.RoutineExecutor.activateRoutine(ctx, newRoutine)
+                    } else {
+                        // For scheduled routines, schedule alarms
+                        RoutineScheduler.scheduleRoutine(ctx, newRoutine)
+                    }
                 }
             }
 
