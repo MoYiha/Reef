@@ -3,5 +3,5 @@
     <background android:drawable="@android:color/black" />
     <foreground android:drawable="@drawable/ic_launcher_foreground" />
     <mask android:drawable="@drawable/ic_launcher_foreground" />
-    <monochrome android:drawable="@drawable/ic_launcher_foreground" />
+    <monochrome android:drawable="@drawable/ic_launcher_monochrome" />
 </adaptive-icon>
