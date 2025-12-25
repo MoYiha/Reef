@@ -9,6 +9,8 @@ import java.util.Calendar
 
 object UsageTracker {
 
+    private val systemAppCache = mutableMapOf<String, Boolean>()
+
     enum class BlockReason {
         NONE,
         DAILY_LIMIT,
@@ -21,6 +23,8 @@ object UsageTracker {
 
     fun checkBlockReason(context: Context, packageName: String): BlockReason {
         if (Whitelist.isWhitelisted(packageName)) return BlockReason.NONE
+
+        if (shouldSkipPackage(context, packageName)) return BlockReason.NONE
 
         val usm = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
 
@@ -91,5 +95,28 @@ object UsageTracker {
         val now = System.currentTimeMillis()
 
         return UsageCalculator.calculateUsage(usm, startOfDay, now, packageName)[packageName] ?: 0L
+    }
+
+    private fun shouldSkipPackage(context: Context, packageName: String): Boolean {
+        if (systemAppCache.containsKey(packageName)) {
+            return systemAppCache[packageName]!!
+        }
+
+        val shouldSkip = try {
+            val pm = context.packageManager
+            val info = pm.getApplicationInfo(packageName, 0)
+            val isSystem = (info.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0
+
+            if (isSystem) {
+                pm.getLaunchIntentForPackage(packageName) == null
+            } else {
+                false
+            }
+        } catch (e: Exception) {
+            false
+        }
+
+        systemAppCache[packageName] = shouldSkip
+        return shouldSkip
     }
 }

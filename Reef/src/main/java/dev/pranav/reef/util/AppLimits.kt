@@ -179,6 +179,8 @@ object Whitelist {
         "com.google.android.packageinstaller",
         "com.google.android.gms",
         "com.google.android.googlequicksearchbox",
+        "com.android.settings.intelligence",
+        "com.google.android.settings.intelligence",
 
         "net.osmand",
         "com.fsck.k9",
