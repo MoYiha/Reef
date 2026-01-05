@@ -49,7 +49,8 @@ fun HomeContent(
     onSlideProgressChange: (Float) -> Unit = {},
     currentTimeLeft: String = "00:00",
     currentTimerState: String = "FOCUS",
-    whitelistedAppsCount: Int = 0
+    whitelistedAppsCount: Int = 0,
+    dailyUsageText: String = "0m today"
 ) {
     val context = LocalContext.current
     val timerState by TimerStateManager.state.collectAsState()
@@ -98,7 +99,8 @@ fun HomeContent(
         ) {
             AppUsageCard(
                 modifier = Modifier.weight(1f),
-                onClick = onNavigateToUsage
+                onClick = onNavigateToUsage,
+                usageText = dailyUsageText
             )
             TimeLimitsCard(
                 modifier = Modifier.weight(1f),
@@ -331,7 +333,8 @@ private fun FocusTogglePill(
 @Composable
 private fun AppUsageCard(
     modifier: Modifier = Modifier,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    usageText: String = "0m today"
 ) {
     Card(
         onClick = onClick,
@@ -373,7 +376,7 @@ private fun AppUsageCard(
                     color = MaterialTheme.colorScheme.onSecondaryContainer
                 )
                 Text(
-                    text = "2h 14m today",
+                    text = usageText,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
                 )

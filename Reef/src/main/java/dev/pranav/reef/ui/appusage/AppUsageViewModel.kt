@@ -9,7 +9,7 @@ import android.os.Process
 import androidx.compose.runtime.*
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import dev.pranav.reef.util.UsageCalculator
+import dev.pranav.reef.util.ScreenUsageHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -50,7 +50,7 @@ class AppUsageViewModel(
     private val _totalUsage = mutableLongStateOf(1L) // Optimization: primitive state
     val totalUsage: State<Long> = _totalUsage
 
-    private val _isLoading = mutableStateOf(true)
+    private val _isLoading = mutableStateOf(false)
     val isLoading: State<Boolean> = _isLoading
 
     private val _isShowingAllApps = mutableStateOf(false)
@@ -74,11 +74,15 @@ class AppUsageViewModel(
         private set
 
     private var allAppStats: List<AppUsageStats> = emptyList()
+    private var isInitialized = false
 
     init {
-        // Defer data loading to not block composition
         viewModelScope.launch {
-            loadInitialData()
+            if (!isInitialized) {
+                _isLoading.value = true
+                loadInitialData()
+                isInitialized = true
+            }
         }
     }
 
@@ -140,7 +144,7 @@ class AppUsageViewModel(
                 val endTime = System.currentTimeMillis()
 
                 val rawMap =
-                    UsageCalculator.calculateUsage(context, usageStatsManager, startTime, endTime)
+                    ScreenUsageHelper.calculateUsage(context, usageStatsManager, startTime, endTime)
                 allAppStats = processUsageMap(rawMap)
 
                 loadWeekData()
@@ -170,7 +174,7 @@ class AppUsageViewModel(
             val stats =
                 if (_selectedDayTimestamp.value != null || selectedRange == UsageRange.TODAY) {
                     processUsageMap(
-                        UsageCalculator.calculateUsage(
+                        ScreenUsageHelper.calculateUsage(
                             context, usageStatsManager,
                             startTime,
                             endTime
@@ -290,7 +294,7 @@ class AppUsageViewModel(
             val endMillis = minOf(cal.timeInMillis, now)
 
             val totalUsageMs = if (endMillis > startMillis) {
-                UsageCalculator.calculateUsage(
+                ScreenUsageHelper.calculateUsage(
                     context, usageStatsManager,
                     startMillis,
                     endMillis
@@ -334,7 +338,7 @@ class AppUsageViewModel(
                 59
             ); end.set(Calendar.SECOND, 59); end.set(Calendar.MILLISECOND, 999)
 
-                if (UsageCalculator.calculateUsage(
+                if (ScreenUsageHelper.calculateUsage(
                         context, usageStatsManager,
                         start.timeInMillis,
                         end.timeInMillis

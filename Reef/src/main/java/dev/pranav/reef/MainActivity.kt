@@ -93,6 +93,7 @@ class MainActivity: ComponentActivity() {
     private val usageStatsManager by lazy { getSystemService(USAGE_STATS_SERVICE) as UsageStatsManager }
     private val launcherApps by lazy { getSystemService(LAUNCHER_APPS_SERVICE) as LauncherApps }
 
+    @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -149,11 +150,6 @@ class MainActivity: ComponentActivity() {
                         currentDestination?.hasRoute<Screen.Routines>() == true
             }
 
-            val showTopBar = remember(currentDestination) {
-                !(currentDestination?.hasRoute<Screen.DailyLimit>() == true ||
-                        currentDestination?.hasRoute<Screen.CreateRoutine>() == true)
-            }
-
             LaunchedEffect(Unit) {
                 if (timerState.isRunning || timerState.isPaused) {
                     currentTimeLeft = "00:00"
@@ -176,20 +172,47 @@ class MainActivity: ComponentActivity() {
 
             ReefTheme {
                 Box(modifier = Modifier.fillMaxSize()) {
+                    var dailyUsageText by remember { mutableStateOf("0m today") }
+
+                    LaunchedEffect(Unit) {
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                            val todayUsage =
+                                ScreenUsageHelper.fetchAppUsageTodayTillNow(usageStatsManager)
+                            val totalUsageSeconds = todayUsage.values.sum()
+                            val totalUsageMinutes = totalUsageSeconds / 60
+
+                            val hours = totalUsageMinutes / 60
+                            val minutes = totalUsageMinutes % 60
+
+                            val usageText = when {
+                                hours > 0 && minutes > 0 -> getString(
+                                    R.string.hour_min_short_suffix,
+                                    hours,
+                                    minutes
+                                ) + " today"
+
+                                hours > 0 -> getString(
+                                    R.string.hours_short_format,
+                                    hours
+                                ) + " today"
+
+                                minutes > 0 -> getString(
+                                    R.string.minutes_short_format,
+                                    minutes
+                                ) + " today"
+
+                                else -> getString(R.string.less_than_one_minute)
+                            }
+
+                            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                dailyUsageText = usageText
+                            }
+                        }
+                    }
+
                     Scaffold(
                         modifier = Modifier.fillMaxSize(),
                         containerColor = MaterialTheme.colorScheme.surface,
-                        topBar = {
-                            AnimatedVisibility(
-                                visible = showTopBar,
-                                enter = fadeIn() + slideInVertically { -it },
-                                exit = fadeOut() + slideOutVertically { -it }
-                            ) {
-                                UnifiedTopBar(
-                                    currentDestination = currentDestination,
-                                )
-                            }
-                        },
                         bottomBar = {
                             AnimatedVisibility(
                                 visible = showBottomBar,
@@ -200,37 +223,52 @@ class MainActivity: ComponentActivity() {
                                     selectedItem = selectedNavIndex,
                                     onItemSelected = { index ->
                                         when (index) {
-                                            0 -> navController.navigate(Screen.Home) {
-                                                popUpTo(Screen.Home) {
-                                                    inclusive = true
-                                                    saveState = true
+                                            0 -> {
+                                                if (selectedNavIndex != 0) {
+                                                    navController.navigate(Screen.Home) {
+                                                        popUpTo(navController.graph.startDestinationId) {
+                                                            saveState = true
+                                                        }
+                                                        launchSingleTop = true
+                                                        restoreState = true
+                                                    }
                                                 }
-                                                launchSingleTop = true
-                                                restoreState = true
                                             }
 
-                                            1 -> navController.navigate(Screen.Usage) {
-                                                popUpTo(Screen.Home) {
-                                                    saveState = true
+                                            1 -> {
+                                                if (selectedNavIndex != 1) {
+                                                    navController.navigate(Screen.Usage) {
+                                                        popUpTo(navController.graph.startDestinationId) {
+                                                            saveState = true
+                                                        }
+                                                        launchSingleTop = true
+                                                        restoreState = true
+                                                    }
                                                 }
-                                                launchSingleTop = true
-                                                restoreState = true
                                             }
 
-                                            2 -> navController.navigate(Screen.Timer) {
-                                                popUpTo(Screen.Home) {
-                                                    saveState = true
+                                            2 -> {
+                                                if (selectedNavIndex != 2) {
+                                                    navController.navigate(Screen.Timer) {
+                                                        popUpTo(navController.graph.startDestinationId) {
+                                                            saveState = true
+                                                        }
+                                                        launchSingleTop = true
+                                                        restoreState = true
+                                                    }
                                                 }
-                                                launchSingleTop = true
-                                                restoreState = true
                                             }
 
-                                            3 -> navController.navigate(Screen.Settings) {
-                                                popUpTo(Screen.Home) {
-                                                    saveState = true
+                                            3 -> {
+                                                if (selectedNavIndex != 3) {
+                                                    navController.navigate(Screen.Settings) {
+                                                        popUpTo(navController.graph.startDestinationId) {
+                                                            saveState = true
+                                                        }
+                                                        launchSingleTop = true
+                                                        restoreState = true
+                                                    }
                                                 }
-                                                launchSingleTop = true
-                                                restoreState = true
                                             }
                                         }
                                     }
@@ -243,69 +281,207 @@ class MainActivity: ComponentActivity() {
                             startDestination = Screen.Home,
                             modifier = Modifier.padding(paddingValues),
                             enterTransition = {
-                                fadeIn(animationSpec = tween(100))
+                                val fromNavBar = initialState.destination.hasRoute<Screen.Home>() ||
+                                        initialState.destination.hasRoute<Screen.Usage>() ||
+                                        initialState.destination.hasRoute<Screen.Timer>() ||
+                                        initialState.destination.hasRoute<Screen.Settings>()
+                                val toNavBar = targetState.destination.hasRoute<Screen.Home>() ||
+                                        targetState.destination.hasRoute<Screen.Usage>() ||
+                                        targetState.destination.hasRoute<Screen.Timer>() ||
+                                        targetState.destination.hasRoute<Screen.Settings>()
+
+                                if (fromNavBar && toNavBar) {
+                                    slideInHorizontally(
+                                        initialOffsetX = { it / 4 },
+                                        animationSpec = tween(200)
+                                    )
+                                } else {
+                                    slideInHorizontally(
+                                        initialOffsetX = { it },
+                                        animationSpec = tween(300)
+                                    )
+                                }
                             },
                             exitTransition = {
-                                fadeOut(animationSpec = tween(100))
+                                val fromNavBar = initialState.destination.hasRoute<Screen.Home>() ||
+                                        initialState.destination.hasRoute<Screen.Usage>() ||
+                                        initialState.destination.hasRoute<Screen.Timer>() ||
+                                        initialState.destination.hasRoute<Screen.Settings>()
+                                val toNavBar = targetState.destination.hasRoute<Screen.Home>() ||
+                                        targetState.destination.hasRoute<Screen.Usage>() ||
+                                        targetState.destination.hasRoute<Screen.Timer>() ||
+                                        targetState.destination.hasRoute<Screen.Settings>()
+
+                                if (fromNavBar && toNavBar) {
+                                    slideOutHorizontally(
+                                        targetOffsetX = { -it / 4 },
+                                        animationSpec = tween(200)
+                                    )
+                                } else {
+                                    slideOutHorizontally(
+                                        targetOffsetX = { -it },
+                                        animationSpec = tween(300)
+                                    )
+                                }
                             },
                             popEnterTransition = {
-                                fadeIn(animationSpec = tween(100))
+                                slideInHorizontally(
+                                    initialOffsetX = { -it / 3 },
+                                    animationSpec = tween(300)
+                                ) + fadeIn(animationSpec = tween(300))
                             },
                             popExitTransition = {
-                                fadeOut(animationSpec = tween(100))
+                                slideOutHorizontally(
+                                    targetOffsetX = { it },
+                                    animationSpec = tween(300)
+                                ) + fadeOut(animationSpec = tween(300))
                             }
                         ) {
                             composable<Screen.Home> {
-                                HomeContent(
-                                    onNavigateToTimer = { navController.navigate(Screen.Timer) },
-                                    onNavigateToUsage = { navController.navigate(Screen.Usage) },
-                                    onNavigateToRoutines = { navController.navigate(Screen.Routines) },
-                                    onNavigateToWhitelist = { navController.navigate(Screen.Whitelist) },
-                                    onNavigateToIntro = {
-                                        startActivity(
-                                            Intent(this@MainActivity, AppIntroActivity::class.java)
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(MaterialTheme.colorScheme.surface)
+                                ) {
+                                    Column(modifier = Modifier.fillMaxSize()) {
+                                        TopAppBar(
+                                            title = {
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                                ) {
+                                                    Surface(
+                                                        modifier = Modifier.size(44.dp),
+                                                        shape = CircleShape,
+                                                        color = MaterialTheme.colorScheme.primaryContainer
+                                                    ) {
+                                                        Box(
+                                                            contentAlignment = Alignment.Center,
+                                                            modifier = Modifier.fillMaxSize()
+                                                        ) {
+                                                            Icon(
+                                                                Icons.Filled.Waves,
+                                                                contentDescription = null,
+                                                                modifier = Modifier.size(26.dp),
+                                                                tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                                            )
+                                                        }
+                                                    }
+                                                    Text(
+                                                        stringResource(R.string.app_name),
+                                                        style = MaterialTheme.typography.headlineLarge.copy(
+                                                            fontWeight = FontWeight.Medium
+                                                        )
+                                                    )
+                                                }
+                                            },
+                                            colors = TopAppBarDefaults.topAppBarColors(
+                                                containerColor = Color.Transparent
+                                            )
                                         )
-                                    },
-                                    onRequestAccessibility = {
-                                        pendingFocusModeStart = true
-                                        showAccessibilityDialog()
-                                    },
-                                    onSlideProgressChange = { progress ->
-                                        slideProgress = progress
-                                    },
-                                    currentTimeLeft = currentTimeLeft,
-                                    currentTimerState = currentTimerState,
-                                    whitelistedAppsCount = whitelistedCount
-                                )
+                                        HomeContent(
+                                            onNavigateToTimer = { navController.navigate(Screen.Timer) },
+                                            onNavigateToUsage = { navController.navigate(Screen.Usage) },
+                                            onNavigateToRoutines = { navController.navigate(Screen.Routines) },
+                                            onNavigateToWhitelist = { navController.navigate(Screen.Whitelist) },
+                                            onNavigateToIntro = {
+                                                startActivity(
+                                                    Intent(
+                                                        this@MainActivity,
+                                                        AppIntroActivity::class.java
+                                                    )
+                                                )
+                                            },
+                                            onRequestAccessibility = {
+                                                pendingFocusModeStart = true
+                                                showAccessibilityDialog()
+                                            },
+                                            onSlideProgressChange = { progress ->
+                                                slideProgress = progress
+                                            },
+                                            currentTimeLeft = currentTimeLeft,
+                                            currentTimerState = currentTimerState,
+                                            whitelistedAppsCount = whitelistedCount,
+                                            dailyUsageText = dailyUsageText
+                                        )
+                                    }
+                                }
                             }
 
                             composable<Screen.Timer> {
-                                TimerContent(
-                                    isTimerRunning = timerState.isRunning,
-                                    isPaused = timerState.isPaused,
-                                    currentTimeLeft = currentTimeLeft,
-                                    currentTimerState = currentTimerState,
-                                    isStrictMode = timerState.isStrictMode,
-                                    onStartTimer = { config -> startFocusMode(config) },
-                                    onPauseTimer = { pauseFocusMode() },
-                                    onResumeTimer = { resumeFocusMode() },
-                                    onCancelTimer = { cancelFocusMode() },
-                                    onRestartTimer = { restartFocusMode() }
-                                )
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(MaterialTheme.colorScheme.surface)
+                                ) {
+                                    Column(modifier = Modifier.fillMaxSize()) {
+                                        TopAppBar(
+                                            title = {
+                                                Text(
+                                                    stringResource(R.string.focus_mode_title),
+                                                    style = MaterialTheme.typography.headlineLarge.copy(
+                                                        fontWeight = FontWeight.Medium
+                                                    )
+                                                )
+                                            },
+                                            colors = TopAppBarDefaults.topAppBarColors(
+                                                containerColor = Color.Transparent
+                                            ),
+                                            modifier = Modifier.statusBarsPadding()
+                                        )
+                                        TimerContent(
+                                            isTimerRunning = timerState.isRunning,
+                                            isPaused = timerState.isPaused,
+                                            currentTimeLeft = currentTimeLeft,
+                                            currentTimerState = currentTimerState,
+                                            isStrictMode = timerState.isStrictMode,
+                                            onStartTimer = { config -> startFocusMode(config) },
+                                            onPauseTimer = { pauseFocusMode() },
+                                            onResumeTimer = { resumeFocusMode() },
+                                            onCancelTimer = { cancelFocusMode() },
+                                            onRestartTimer = { restartFocusMode() }
+                                        )
+                                    }
+                                }
                             }
 
                             composable<Screen.Usage> {
-                                UsageScreenWrapper(
-                                    context = this@MainActivity,
-                                    usageStatsManager = usageStatsManager,
-                                    launcherApps = launcherApps,
-                                    packageManager = packageManager,
-                                    currentPackageName = packageName,
-                                    onBackPressed = { navController.popBackStack() },
-                                    onAppClick = { appUsageStats ->
-                                        navController.navigate(Screen.DailyLimit(appUsageStats.applicationInfo.packageName))
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(MaterialTheme.colorScheme.surface)
+                                ) {
+                                    Column(modifier = Modifier.fillMaxSize()) {
+                                        MediumTopAppBar(
+                                            title = {
+                                                Text(
+                                                    stringResource(R.string.app_usage),
+                                                    style = MaterialTheme.typography.headlineLarge.copy(
+                                                        fontWeight = FontWeight.Medium
+                                                    )
+                                                )
+                                            },
+                                            colors = TopAppBarDefaults.topAppBarColors(
+                                                containerColor = Color.Transparent
+                                            )
+                                        )
+                                        UsageScreenWrapper(
+                                            context = this@MainActivity,
+                                            usageStatsManager = usageStatsManager,
+                                            launcherApps = launcherApps,
+                                            packageManager = packageManager,
+                                            currentPackageName = packageName,
+                                            onBackPressed = { navController.popBackStack() },
+                                            onAppClick = { appUsageStats ->
+                                                navController.navigate(
+                                                    Screen.DailyLimit(
+                                                        appUsageStats.applicationInfo.packageName
+                                                    )
+                                                )
+                                            }
+                                        )
                                     }
-                                )
+                                }
                             }
 
                             composable<Screen.DailyLimit> { backStackEntry ->
@@ -361,18 +537,39 @@ class MainActivity: ComponentActivity() {
                             }
 
                             composable<Screen.Routines> {
-                                RoutinesScreen(
-                                    onCreateRoutine = {
-                                        navController.navigate(
-                                            Screen.CreateRoutine(
-                                                null
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(MaterialTheme.colorScheme.surface)
+                                ) {
+                                    Column(modifier = Modifier.fillMaxSize()) {
+                                        MediumTopAppBar(
+                                            title = {
+                                                Text(
+                                                    stringResource(R.string.routines),
+                                                    style = MaterialTheme.typography.headlineLarge.copy(
+                                                        fontWeight = FontWeight.Medium
+                                                    )
+                                                )
+                                            },
+                                            colors = TopAppBarDefaults.topAppBarColors(
+                                                containerColor = Color.Transparent
                                             )
                                         )
-                                    },
-                                    onEditRoutine = { routine ->
-                                        navController.navigate(Screen.CreateRoutine(routine.id))
+                                        RoutinesScreen(
+                                            onCreateRoutine = {
+                                                navController.navigate(
+                                                    Screen.CreateRoutine(
+                                                        null
+                                                    )
+                                                )
+                                            },
+                                            onEditRoutine = { routine ->
+                                                navController.navigate(Screen.CreateRoutine(routine.id))
+                                            }
+                                        )
                                     }
-                                )
+                                }
                             }
 
                             composable<Screen.CreateRoutine> { backStackEntry ->
@@ -385,17 +582,59 @@ class MainActivity: ComponentActivity() {
                             }
 
                             composable<Screen.Whitelist> {
-                                WhitelistScreenWrapper(
-                                    launcherApps = launcherApps,
-                                    packageManager = packageManager,
-                                    currentPackageName = packageName
-                                )
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(MaterialTheme.colorScheme.surface)
+                                ) {
+                                    Column(modifier = Modifier.fillMaxSize()) {
+                                        MediumTopAppBar(
+                                            title = {
+                                                Text(
+                                                    stringResource(R.string.whitelist_apps_title),
+                                                    style = MaterialTheme.typography.headlineLarge.copy(
+                                                        fontWeight = FontWeight.Medium
+                                                    )
+                                                )
+                                            },
+                                            colors = TopAppBarDefaults.topAppBarColors(
+                                                containerColor = Color.Transparent
+                                            )
+                                        )
+                                        WhitelistScreenWrapper(
+                                            launcherApps = launcherApps,
+                                            packageManager = packageManager,
+                                            currentPackageName = packageName
+                                        )
+                                    }
+                                }
                             }
 
                             composable<Screen.Settings> {
-                                SettingsContent(
-                                    onSoundPicker = { launchSoundPicker() }
-                                )
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(MaterialTheme.colorScheme.surface)
+                                ) {
+                                    Column(modifier = Modifier.fillMaxSize()) {
+                                        MediumTopAppBar(
+                                            title = {
+                                                Text(
+                                                    stringResource(R.string.settings),
+                                                    style = MaterialTheme.typography.headlineLarge.copy(
+                                                        fontWeight = FontWeight.Medium
+                                                    )
+                                                )
+                                            },
+                                            colors = TopAppBarDefaults.topAppBarColors(
+                                                containerColor = Color.Transparent
+                                            )
+                                        )
+                                        SettingsContent(
+                                            onSoundPicker = { launchSoundPicker() }
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
