@@ -8,8 +8,23 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MediumTopAppBar
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -35,6 +50,9 @@ fun NotificationSettingsContent(
     var breakAlerts by remember { mutableStateOf(prefs.getBoolean("break_alerts", true)) }
     var dailySummary by remember { mutableStateOf(prefs.getBoolean("daily_summary", false)) }
     var limitWarnings by remember { mutableStateOf(prefs.getBoolean("limit_warnings", true)) }
+    var prominentFocusNotification by remember {
+        mutableStateOf(prefs.getBoolean("prominent_focus_notification", true))
+    }
 
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
@@ -43,7 +61,7 @@ fun NotificationSettingsContent(
             MediumTopAppBar(
                 title = { Text(stringResource(R.string.notifications_settings_title)) },
                 navigationIcon = {
-                    IconButton(onClick = onBackPressed) {
+                    IconButton(onClick = onBackPressed, shapes = IconButtonDefaults.shapes()) {
                         Icon(
                             Icons.AutoMirrored.Rounded.ArrowBack,
                             contentDescription = stringResource(R.string.back)
@@ -71,7 +89,7 @@ fun NotificationSettingsContent(
             }
 
             item {
-                SettingsCard(index = 0, listSize = 4) {
+                SettingsCard(index = 0, listSize = 5) {
                     ListItem(
                         modifier = Modifier
                             .clickable {
@@ -103,7 +121,7 @@ fun NotificationSettingsContent(
             }
 
             item {
-                SettingsCard(index = 1, listSize = 4) {
+                SettingsCard(index = 1, listSize = 5) {
                     ListItem(
                         modifier = Modifier
                             .clickable {
@@ -135,7 +153,7 @@ fun NotificationSettingsContent(
             }
 
             item {
-                SettingsCard(index = 2, listSize = 4) {
+                SettingsCard(index = 2, listSize = 5) {
                     ListItem(
                         modifier = Modifier
                             .clickable {
@@ -177,7 +195,7 @@ fun NotificationSettingsContent(
             }
 
             item {
-                SettingsCard(index = 3, listSize = 4) {
+                SettingsCard(index = 3, listSize = 5) {
                     ListItem(
                         modifier = Modifier
                             .clickable {
@@ -202,6 +220,48 @@ fun NotificationSettingsContent(
                                 limitWarnings = it
                                 prefs.edit { putBoolean("limit_warnings", it) }
                             })
+                        },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                    )
+                }
+            }
+
+            item {
+                SettingsCard(index = 4, listSize = 5) {
+                    ListItem(
+                        modifier = Modifier
+                            .clickable {
+                                prominentFocusNotification = !prominentFocusNotification
+                                prefs.edit {
+                                    putBoolean(
+                                        "prominent_focus_notification",
+                                        prominentFocusNotification
+                                    )
+                                }
+                            }
+                            .padding(4.dp),
+                        headlineContent = {
+                            Text(
+                                stringResource(R.string.prominent_focus_notification),
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                        },
+                        supportingContent = {
+                            Text(
+                                stringResource(R.string.prominent_focus_notification_description),
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        },
+                        trailingContent = {
+                            Switch(
+                                checked = prominentFocusNotification,
+                                onCheckedChange = {
+                                    prominentFocusNotification = it
+                                    prefs.edit {
+                                        putBoolean("prominent_focus_notification", it)
+                                    }
+                                }
+                            )
                         },
                         colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                     )

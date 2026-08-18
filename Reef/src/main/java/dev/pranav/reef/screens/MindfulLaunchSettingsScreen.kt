@@ -1,32 +1,82 @@
 package dev.pranav.reef.screens
 
 import android.content.Context
+import android.content.pm.ApplicationInfo
 import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
-import android.os.Build
+import android.graphics.drawable.Drawable
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.rounded.FilterList
+import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.ContainedLoadingIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MediumTopAppBar
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberTopAppBarState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.edit
+import androidx.core.graphics.drawable.toBitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -38,10 +88,11 @@ import dev.pranav.reef.util.prefs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MindfulLaunchSettingsContent(
+fun MindfulLaunchScreen(
     onBackPressed: () -> Unit,
     onNavigateToApps: () -> Unit
 ) {
@@ -51,7 +102,7 @@ fun MindfulLaunchSettingsContent(
     var duration by remember { mutableStateOf(MindfulLaunchManager.getDurationSeconds()) }
     var warningMessage by remember { mutableStateOf(MindfulLaunchManager.getWarningMessage()) }
     var limitEnabled by remember { mutableStateOf(MindfulLaunchManager.isLimitEnabled()) }
-    var limitCount by remember { mutableStateOf(MindfulLaunchManager.getLimitCount()) }
+    var limitCount by remember { mutableIntStateOf(MindfulLaunchManager.getLimitCount()) }
     val selectedAppsCount = remember { MindfulLaunchManager.getMindfulApps().size }
 
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
@@ -59,7 +110,7 @@ fun MindfulLaunchSettingsContent(
     Scaffold(
         topBar = {
             MediumTopAppBar(
-                title = { Text(stringResource(R.string.mindful_launch_settings)) },
+                title = { Text(stringResource(R.string.mindful_launch)) },
                 navigationIcon = {
                     IconButton(onClick = onBackPressed) {
                         Icon(
@@ -81,7 +132,7 @@ fun MindfulLaunchSettingsContent(
             // Section 1: Main Toggle
             item {
                 Text(
-                    text = stringResource(R.string.general_section),
+                    text = stringResource(R.string.active_status),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary,
@@ -100,7 +151,7 @@ fun MindfulLaunchSettingsContent(
                             .padding(4.dp),
                         headlineContent = {
                             Text(
-                                stringResource(R.string.enable_mindful_launch),
+                                if (enabled) stringResource(R.string.enabled) else stringResource(R.string.disabled),
                                 style = MaterialTheme.typography.titleMedium
                             )
                         },
@@ -129,7 +180,7 @@ fun MindfulLaunchSettingsContent(
                 item {
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = stringResource(R.string.automation),
+                        text = "Configurations",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary,
@@ -311,7 +362,7 @@ class MindfulLaunchAppsViewModel(
     private val launcherApps: LauncherApps,
     private val packageManager: PackageManager,
     private val currentPackageName: String
-): ViewModel() {
+) : ViewModel() {
 
     private val _uiState = mutableStateOf<AllowedAppsState>(AllowedAppsState.Loading)
     val uiState: State<AllowedAppsState> = _uiState
@@ -320,6 +371,12 @@ class MindfulLaunchAppsViewModel(
 
     private val _searchQuery = mutableStateOf("")
     val searchQuery: State<String> = _searchQuery
+
+    private val _showSystemApps = mutableStateOf(false)
+    val showSystemApps: State<Boolean> = _showSystemApps
+
+    private val _onlyLaunchable = mutableStateOf(true)
+    val onlyLaunchable: State<Boolean> = _onlyLaunchable
 
     init {
         loadApps()
@@ -333,40 +390,30 @@ class MindfulLaunchAppsViewModel(
 
                 profiles.forEach { userHandle ->
                     val launcherActivities = launcherApps.getActivityList(null, userHandle)
-                        .distinctBy { it.applicationInfo.packageName }
+                    val launchablePackages =
+                        launcherActivities.map { it.applicationInfo.packageName }.toSet()
 
-                    val profileSystemApps =
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
-                            launcherApps.getPreInstalledSystemPackages(userHandle)
-                                .mapNotNull { pkg ->
-                                    runCatching {
-                                        packageManager.getApplicationInfo(pkg, 0)
-                                    }.getOrNull()
-                                }
-                        } else {
-                            emptyList()
+                    val allInstalledApps =
+                        packageManager.getInstalledApplications(PackageManager.GET_META_DATA)
+
+                    val combined = allInstalledApps
+                        .filter { it.packageName != currentPackageName }
+                        .map { appInfo ->
+                            val isLaunchable = launchablePackages.contains(appInfo.packageName)
+                            val isSystem = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
+
+                            WhitelistedApp(
+                                packageName = appInfo.packageName,
+                                label = appInfo.loadLabel(packageManager).toString(),
+                                isWhitelisted = MindfulLaunchManager.isMindfulApp(appInfo.packageName),
+                                user = userHandle,
+                                isSystemApp = isSystem,
+                                isLaunchable = isLaunchable
+                            )
                         }
-
-                    val combined =
-                        (launcherActivities.map { it.applicationInfo } + profileSystemApps)
-                            .distinctBy { it.packageName }
-                            .filter { it.packageName != currentPackageName }
-                            .map { appInfo ->
-                                val originalIcon = appInfo.loadIcon(packageManager)
-                                val badgedIcon =
-                                    packageManager.getUserBadgedIcon(originalIcon, userHandle)
-
-                                WhitelistedApp(
-                                    packageName = appInfo.packageName,
-                                    label = appInfo.loadLabel(packageManager).toString(),
-                                    icon = badgedIcon.toBitmap().asImageBitmap(),
-                                    isWhitelisted = MindfulLaunchManager.isMindfulApp(appInfo.packageName),
-                                    user = userHandle
-                                )
-                            }
                     allAppsList.addAll(combined)
                 }
-                allAppsList.sortedBy { it.label }
+                allAppsList.distinctBy { it.packageName + it.user.hashCode() }.sortedBy { it.label }
             }
             allApps = apps
             updateFilteredList()
@@ -378,15 +425,30 @@ class MindfulLaunchAppsViewModel(
         updateFilteredList()
     }
 
+    fun toggleSystemApps() {
+        _showSystemApps.value = !_showSystemApps.value
+        updateFilteredList()
+    }
+
+    fun toggleOnlyLaunchable() {
+        _onlyLaunchable.value = !_onlyLaunchable.value
+        updateFilteredList()
+    }
+
     private fun updateFilteredList() {
         val query = _searchQuery.value
-        val filtered = if (query.isEmpty()) {
-            allApps
-        } else {
-            allApps.filter {
-                it.label.contains(query, ignoreCase = true) ||
-                        it.packageName.contains(query, ignoreCase = true)
-            }
+        val showSystem = _showSystemApps.value
+        val onlyLaunch = _onlyLaunchable.value
+
+        val filtered = allApps.filter { app ->
+            val matchesQuery = query.isEmpty() ||
+                    app.label.contains(query, ignoreCase = true) ||
+                    app.packageName.contains(query, ignoreCase = true)
+
+            val matchesSystem = showSystem || !app.isSystemApp
+            val matchesLaunchable = !onlyLaunch || app.isLaunchable
+
+            matchesQuery && matchesSystem && matchesLaunchable
         }
         _uiState.value = AllowedAppsState.Success(filtered)
     }
@@ -423,72 +485,78 @@ fun MindfulLaunchAppsScreen(
         remember { context.getSystemService(Context.LAUNCHER_APPS_SERVICE) as LauncherApps }
     val packageManager = remember { context.packageManager }
     val currentPackageName = remember { context.packageName }
+    var appToConfigure by remember { mutableStateOf<WhitelistedApp?>(null) }
 
     val viewModel: MindfulLaunchAppsViewModel = viewModel(
-        factory = object: ViewModelProvider.Factory {
+        factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
-            override fun <T: ViewModel> create(modelClass: Class<T>): T =
+            override fun <T : ViewModel> create(modelClass: Class<T>): T =
                 MindfulLaunchAppsViewModel(launcherApps, packageManager, currentPackageName) as T
         }
     )
 
     val scrollBehavior =
         TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
+    var showFilterMenu by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         contentWindowInsets = WindowInsets(0),
         topBar = {
-            Column {
-                MediumTopAppBar(
-                    title = { Text(stringResource(R.string.mindful_launch_apps)) },
-                    navigationIcon = {
-                        IconButton(onClick = onBackPressed) {
-                            Icon(
-                                Icons.AutoMirrored.Rounded.ArrowBack,
-                                contentDescription = stringResource(R.string.back)
+            MediumTopAppBar(
+                title = { Text(stringResource(R.string.mindful_launch_apps)) },
+                navigationIcon = {
+                    IconButton(onClick = onBackPressed) {
+                        Icon(
+                            Icons.AutoMirrored.Rounded.ArrowBack,
+                            contentDescription = stringResource(R.string.back)
+                        )
+                    }
+                },
+                actions = {
+                    Box {
+                        IconButton(onClick = { showFilterMenu = true }) {
+                            Icon(Icons.Rounded.FilterList, contentDescription = "Filters")
+                        }
+                        DropdownMenu(
+                            expanded = showFilterMenu,
+                            onDismissRequest = { showFilterMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Show System Apps") },
+                                onClick = {
+                                    viewModel.toggleSystemApps()
+                                    showFilterMenu = false
+                                },
+                                leadingIcon = {
+                                    Checkbox(
+                                        checked = viewModel.showSystemApps.value,
+                                        onCheckedChange = null
+                                    )
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Only Launchable Apps") },
+                                onClick = {
+                                    viewModel.toggleOnlyLaunchable()
+                                    showFilterMenu = false
+                                },
+                                leadingIcon = {
+                                    Checkbox(
+                                        checked = viewModel.onlyLaunchable.value,
+                                        onCheckedChange = null
+                                    )
+                                }
                             )
                         }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color.Transparent,
-                        scrolledContainerColor = MaterialTheme.colorScheme.surface
-                    ),
-                    scrollBehavior = scrollBehavior
-                )
-
-                OutlinedTextField(
-                    value = viewModel.searchQuery.value,
-                    onValueChange = viewModel::onSearchQueryChange,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    placeholder = {
-                        Text(
-                            stringResource(R.string.search_apps),
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-                    },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                    trailingIcon = {
-                        if (viewModel.searchQuery.value.isNotEmpty()) {
-                            IconButton(onClick = { viewModel.onSearchQueryChange("") }) {
-                                Icon(
-                                    Icons.Default.Close,
-                                    contentDescription = "Clear search"
-                                )
-                            }
-                        }
-                    },
-                    shape = RoundedCornerShape(28.dp),
-                    singleLine = true,
-                    textStyle = MaterialTheme.typography.bodyLarge,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = Color.Transparent,
-                        unfocusedContainerColor = Color.Transparent,
-                    )
-                )
-            }
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                ),
+                scrollBehavior = scrollBehavior
+            )
         }
     ) { paddingValues ->
         Box(
@@ -502,26 +570,77 @@ fun MindfulLaunchAppsScreen(
                 }
 
                 is AllowedAppsState.Success -> {
-                    if (uiState.apps.isEmpty()) {
-                        Text(
-                            text = stringResource(R.string.no_apps_found),
-                            modifier = Modifier.align(Alignment.Center),
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-                    } else {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(16.dp)
-                        ) {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(16.dp)
+                    ) {
+                        item {
+                            OutlinedTextField(
+                                value = viewModel.searchQuery.value,
+                                onValueChange = viewModel::onSearchQueryChange,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 16.dp),
+                                placeholder = {
+                                    Text(
+                                        stringResource(R.string.search_apps),
+                                        style = MaterialTheme.typography.bodyLarge
+                                    )
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.Default.Search,
+                                        contentDescription = null
+                                    )
+                                },
+                                trailingIcon = {
+                                    if (viewModel.searchQuery.value.isNotEmpty()) {
+                                        IconButton(onClick = { viewModel.onSearchQueryChange("") }) {
+                                            Icon(
+                                                Icons.Default.Close,
+                                                contentDescription = "Clear search"
+                                            )
+                                        }
+                                    }
+                                },
+                                shape = RoundedCornerShape(28.dp),
+                                singleLine = true,
+                                textStyle = MaterialTheme.typography.bodyLarge,
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                                    focusedBorderColor = Color.Transparent,
+                                    unfocusedBorderColor = Color.Transparent
+                                )
+                            )
+                        }
+
+                        if (uiState.apps.isEmpty()) {
+                            item {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 64.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.no_apps_found),
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        } else {
                             itemsIndexed(
                                 items = uiState.apps,
                                 key = { _, app -> app.packageName + app.user.hashCode() }
                             ) { index, app ->
-                                WhitelistItem(
+                                MindfulLaunchProtectedAppItem(
                                     app = app,
                                     index = index,
                                     listSize = uiState.apps.size,
-                                    onToggle = { viewModel.toggleApp(app) }
+                                    onToggle = { viewModel.toggleApp(app) },
+                                    onConfigure = { appToConfigure = app }
                                 )
                             }
                         }
@@ -530,4 +649,266 @@ fun MindfulLaunchAppsScreen(
             }
         }
     }
+
+    appToConfigure?.let { app ->
+        MindfulLaunchAppOverrideDialog(
+            app = app,
+            onDismiss = { appToConfigure = null }
+        )
+    }
+}
+
+@Composable
+private fun MindfulLaunchProtectedAppItem(
+    app: WhitelistedApp,
+    index: Int,
+    listSize: Int,
+    onToggle: () -> Unit,
+    onConfigure: () -> Unit
+) {
+    val context = LocalContext.current
+    var icon by remember(app.packageName, app.user) { mutableStateOf<Drawable?>(null) }
+
+    LaunchedEffect(app.packageName, app.user) {
+        withContext(Dispatchers.IO) {
+            try {
+                val pm = context.packageManager
+                val appInfo = pm.getApplicationInfo(app.packageName, 0)
+                val originalIcon = appInfo.loadIcon(pm)
+                icon = pm.getUserBadgedIcon(originalIcon, app.user)
+            } catch (_: Exception) {
+            }
+        }
+    }
+
+    val summary = when {
+        !app.isWhitelisted -> null
+        !MindfulLaunchManager.hasAppOverrides(app.packageName) ->
+            stringResource(R.string.mindful_launch_uses_defaults)
+
+        else -> {
+            val limitSummary =
+                if (MindfulLaunchManager.isLimitEnabled(app.packageName)) {
+                    stringResource(
+                        R.string.mindful_launch_limit_summary,
+                        MindfulLaunchManager.getLimitCount(app.packageName)
+                    )
+                } else {
+                    stringResource(R.string.mindful_launch_no_limit)
+                }
+            stringResource(
+                R.string.mindful_launch_custom_summary,
+                MindfulLaunchManager.getDurationSeconds(app.packageName),
+                limitSummary
+            )
+        }
+    }
+
+    SettingsCard(index = index, listSize = listSize) {
+        ListItem(
+            modifier = Modifier
+                .clickable {
+                    if (app.isWhitelisted) onConfigure() else onToggle()
+                }
+                .padding(4.dp),
+            headlineContent = {
+                Text(
+                    text = app.label,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1
+                )
+            },
+            supportingContent = summary?.let {
+                {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            },
+            leadingContent = {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .background(
+                            MaterialTheme.colorScheme.surfaceContainerHigh,
+                            RoundedCornerShape(8.dp)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    icon?.let {
+                        Image(
+                            painter = BitmapPainter(it.toBitmap().asImageBitmap()),
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                }
+            },
+            trailingContent = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (app.isWhitelisted) {
+                        IconButton(onClick = onConfigure) {
+                            Icon(
+                                Icons.Rounded.Tune,
+                                contentDescription = stringResource(
+                                    R.string.mindful_launch_customize_app
+                                )
+                            )
+                        }
+                    }
+                    Checkbox(
+                        checked = app.isWhitelisted,
+                        onCheckedChange = { onToggle() }
+                    )
+                }
+            },
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+        )
+    }
+}
+
+@Composable
+private fun MindfulLaunchAppOverrideDialog(
+    app: WhitelistedApp,
+    onDismiss: () -> Unit
+) {
+    val packageName = app.packageName
+    var useGlobalSettings by remember(packageName) {
+        mutableStateOf(!MindfulLaunchManager.hasAppOverrides(packageName))
+    }
+    var durationSeconds by remember(packageName) {
+        mutableIntStateOf(
+            MindfulLaunchManager.getDurationSeconds(packageName).coerceIn(5, 300)
+        )
+    }
+    var warningMessage by remember(packageName) {
+        mutableStateOf(MindfulLaunchManager.getWarningMessage(packageName))
+    }
+    var limitEnabled by remember(packageName) {
+        mutableStateOf(MindfulLaunchManager.isLimitEnabled(packageName))
+    }
+    var limitCount by remember(packageName) {
+        mutableIntStateOf(MindfulLaunchManager.getLimitCount(packageName))
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        modifier = Modifier.fillMaxWidth(0.8f),
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+        title = {
+            Text(stringResource(R.string.mindful_launch_app_settings, app.label))
+        },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = "Configure behavior for " + app.label,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                ListItem(
+                    headlineContent = {
+                        Text(stringResource(R.string.use_global_settings))
+                    },
+                    trailingContent = {
+                        Switch(
+                            checked = useGlobalSettings,
+                            onCheckedChange = { useGlobalSettings = it }
+                        )
+                    },
+                    modifier = Modifier.clickable {
+                        useGlobalSettings = !useGlobalSettings
+                    },
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                )
+
+                if (!useGlobalSettings) {
+                    Text(
+                        text = stringResource(
+                            R.string.mindful_launch_delay_seconds,
+                            durationSeconds
+                        ),
+                        style = MaterialTheme.typography.titleSmall
+                    )
+                    Slider(
+                        value = durationSeconds.toFloat(),
+                        onValueChange = {
+                            durationSeconds = (it / 5f).roundToInt() * 5
+                        },
+                        valueRange = 5f..300f,
+                        steps = 58
+                    )
+                    OutlinedTextField(
+                        value = warningMessage,
+                        onValueChange = { warningMessage = it },
+                        label = {
+                            Text(stringResource(R.string.mindful_launch_warning))
+                        },
+                        placeholder = {
+                            Text(stringResource(R.string.mindful_launch_warning_hint))
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 3
+                    )
+                    ListItem(
+                        headlineContent = {
+                            Text(stringResource(R.string.enable_launch_limit))
+                        },
+                        trailingContent = {
+                            Switch(
+                                checked = limitEnabled,
+                                onCheckedChange = { limitEnabled = it }
+                            )
+                        },
+                        modifier = Modifier.clickable {
+                            limitEnabled = !limitEnabled
+                        },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                    )
+                    if (limitEnabled) {
+                        Text(
+                            text = stringResource(
+                                R.string.mindful_launch_limit_summary,
+                                limitCount
+                            ),
+                            style = MaterialTheme.typography.titleSmall
+                        )
+                        Slider(
+                            value = limitCount.toFloat(),
+                            onValueChange = { limitCount = it.roundToInt() },
+                            valueRange = 1f..100f,
+                            steps = 98
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    if (useGlobalSettings) {
+                        MindfulLaunchManager.clearAppOverrides(packageName)
+                    } else {
+                        MindfulLaunchManager.setAppOverrides(
+                            pkg = packageName,
+                            durationSeconds = durationSeconds,
+                            warningMessage = warningMessage,
+                            limitEnabled = limitEnabled,
+                            limitCount = limitCount
+                        )
+                    }
+                    onDismiss()
+                }
+            ) {
+                Text(stringResource(R.string.save))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) {
+                Text(stringResource(R.string.cancel))
+            }
+        }
+    )
 }

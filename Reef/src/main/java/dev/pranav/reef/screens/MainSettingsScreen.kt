@@ -4,18 +4,41 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
-import androidx.compose.animation.*
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.Language
+import androidx.compose.material.icons.rounded.Notifications
+import androidx.compose.material.icons.rounded.Timer
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -44,12 +67,6 @@ fun MainSettingsContent(
             title = stringResource(R.string.pomodoro),
             subtitle = stringResource(R.string.pomodoro_subtitle),
             destination = SettingsScreenRoute.Pomodoro
-        ),
-        SettingsMenuItem(
-            icon = Icons.Rounded.HourglassEmpty,
-            title = stringResource(R.string.mindful_launch),
-            subtitle = stringResource(R.string.mindful_launch_subtitle),
-            destination = SettingsScreenRoute.MindfulLaunch
         ),
         SettingsMenuItem(
             icon = Icons.Rounded.Notifications,
@@ -155,7 +172,6 @@ fun MainSettingsContent(
                 onClick = {
                     when (item.destination) {
                         SettingsScreenRoute.Pomodoro -> onNavigate(SettingsScreenRoute.Pomodoro)
-                        SettingsScreenRoute.MindfulLaunch -> onNavigate(SettingsScreenRoute.MindfulLaunch)
                         SettingsScreenRoute.Notifications -> onNavigate(SettingsScreenRoute.Notifications)
                         SettingsScreenRoute.Main -> context.startActivity(
                             Intent(context, AboutActivity::class.java)

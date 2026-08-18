@@ -1,10 +1,27 @@
 package dev.pranav.reef.screens
 
+import android.content.Context
+import android.content.pm.ApplicationInfo
+import android.content.pm.PackageManager
 import android.graphics.drawable.Drawable
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -13,11 +30,59 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Apps
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.outlined.AccessTime
 import androidx.compose.material.icons.outlined.Layers
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.rounded.FilterList
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ButtonGroupDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MediumTopAppBar
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedCard
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SheetValue
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberBottomSheetState
+import androidx.compose.material3.rememberTimePickerState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
@@ -98,7 +163,7 @@ fun CreateRoutineScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBackPressed) {
+                    IconButton(onClick = onBackPressed, shapes = IconButtonDefaults.shapes()) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(R.string.back)
@@ -540,7 +605,10 @@ fun CreateRoutineScreen(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) {
+                TextButton(
+                    onClick = { showDeleteDialog = false },
+                    shapes = ButtonDefaults.shapes()
+                ) {
                     Text(stringResource(R.string.cancel))
                 }
             }
@@ -740,13 +808,15 @@ private fun CreateGroupDialog(
     }
     var limitDialogForPackage by remember { mutableStateOf<String?>(null) }
 
-    var allApps by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
+    var allApps by remember { mutableStateOf<List<AppMetadata>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var searchQuery by remember { mutableStateOf("") }
+    var showSystemApps by remember { mutableStateOf(false) }
+    var onlyLaunchable by remember { mutableStateOf(true) }
 
     val filteredApps = remember(allApps, searchQuery) {
         if (searchQuery.isBlank()) allApps
-        else allApps.filter { it.second.contains(searchQuery, ignoreCase = true) }
+        else allApps.filter { it.label.contains(searchQuery, ignoreCase = true) }
     }
 
     LaunchedEffect(Unit) {
@@ -756,7 +826,7 @@ private fun CreateGroupDialog(
         }
     }
 
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val sheetState = rememberBottomSheetState(SheetValue.Hidden)
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -793,6 +863,10 @@ private fun CreateGroupDialog(
                     },
                     searchQuery = searchQuery,
                     onSearchQueryChange = { searchQuery = it },
+                    showSystemApps = showSystemApps,
+                    onToggleSystemApps = { showSystemApps = !showSystemApps },
+                    onlyLaunchable = onlyLaunchable,
+                    onToggleOnlyLaunchable = { onlyLaunchable = !onlyLaunchable },
                     groupType = groupType,
                     onBack = { step = 0 },
                     onNext = {
@@ -1009,20 +1083,33 @@ private fun GroupConfigStep(
     }
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+private data class AppMetadata(
+    val packageName: String,
+    val label: String,
+    val isSystem: Boolean,
+    val isLaunchable: Boolean
+)
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun AppSelectStep(
     isLoading: Boolean,
-    filteredApps: List<Pair<String, String>>,
+    filteredApps: List<AppMetadata>,
     selectedPackages: Set<String>,
     onTogglePackage: (String) -> Unit,
     searchQuery: String,
     onSearchQueryChange: (String) -> Unit,
+    showSystemApps: Boolean,
+    onToggleSystemApps: () -> Unit,
+    onlyLaunchable: Boolean,
+    onToggleOnlyLaunchable: () -> Unit,
     groupType: Routine.AppGroup.GroupType,
     onBack: () -> Unit,
     onNext: () -> Unit
 ) {
     val context = LocalContext.current
+    var showFilterMenu by remember { mutableStateOf(false) }
+
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -1038,6 +1125,36 @@ private fun AppSelectStep(
             style = MaterialTheme.typography.headlineSmall,
             modifier = Modifier.weight(1f)
         )
+        Box {
+            IconButton(onClick = { showFilterMenu = true }) {
+                Icon(Icons.Rounded.FilterList, contentDescription = "Filters")
+            }
+            DropdownMenu(
+                expanded = showFilterMenu,
+                onDismissRequest = { showFilterMenu = false }
+            ) {
+                DropdownMenuItem(
+                    text = { Text("Show System Apps") },
+                    onClick = {
+                        onToggleSystemApps()
+                        showFilterMenu = false
+                    },
+                    leadingIcon = {
+                        Checkbox(checked = showSystemApps, onCheckedChange = null)
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text("Only Launchable Apps") },
+                    onClick = {
+                        onToggleOnlyLaunchable()
+                        showFilterMenu = false
+                    },
+                    leadingIcon = {
+                        Checkbox(checked = onlyLaunchable, onCheckedChange = null)
+                    }
+                )
+            }
+        }
     }
 
     OutlinedTextField(
@@ -1052,6 +1169,12 @@ private fun AppSelectStep(
             imeAction = ImeAction.Search
         )
     )
+
+    val finalFilteredApps = remember(filteredApps, showSystemApps, onlyLaunchable) {
+        filteredApps.filter { app ->
+            (showSystemApps || !app.isSystem) && (!onlyLaunchable || app.isLaunchable)
+        }
+    }
 
     if (isLoading) {
         Box(
@@ -1068,12 +1191,12 @@ private fun AppSelectStep(
                 .fillMaxWidth()
                 .fillMaxHeight(0.5f)
         ) {
-            items(filteredApps) { (packageName, appName) ->
-                val appIcon = rememberAppIcon(packageName, context)
+            items(finalFilteredApps) { app ->
+                val appIcon = rememberAppIcon(app.packageName, context)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { onTogglePackage(packageName) }
+                        .clickable { onTogglePackage(app.packageName) }
                         .padding(horizontal = 8.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -1093,17 +1216,17 @@ private fun AppSelectStep(
                     }
 
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(appName, style = MaterialTheme.typography.bodyLarge)
+                        Text(app.label, style = MaterialTheme.typography.bodyLarge)
                         Text(
-                            text = packageName,
+                            text = app.packageName,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
 
                     Checkbox(
-                        checked = packageName in selectedPackages,
-                        onCheckedChange = { onTogglePackage(packageName) }
+                        checked = app.packageName in selectedPackages,
+                        onCheckedChange = { onTogglePackage(app.packageName) }
                     )
                 }
             }
@@ -1142,7 +1265,7 @@ private fun AppSelectStep(
 @Composable
 private fun IndividualLimitsStep(
     selectedPackages: List<String>,
-    allApps: List<Pair<String, String>>,
+    allApps: List<AppMetadata>,
     individualLimits: Map<String, Int>,
     onLimitChange: (String, Int) -> Unit,
     limitDialogForPackage: String?,
@@ -1176,7 +1299,7 @@ private fun IndividualLimitsStep(
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         items(selectedPackages) { packageName ->
-            val appName = allApps.find { it.first == packageName }?.second ?: packageName
+            val appName = allApps.find { it.packageName == packageName }?.label ?: packageName
             val currentLimit = individualLimits[packageName] ?: 30
 
             Row(
@@ -1214,7 +1337,7 @@ private fun IndividualLimitsStep(
 
     if (limitDialogForPackage != null) {
         val appName =
-            allApps.find { it.first == limitDialogForPackage }?.second ?: limitDialogForPackage
+            allApps.find { it.packageName == limitDialogForPackage }?.label ?: limitDialogForPackage
         LimitPickerDialog(
             packageName = limitDialogForPackage,
             appName = appName,
@@ -1255,7 +1378,7 @@ private fun TimePickerDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) {
                 Text(stringResource(R.string.cancel))
             }
         },
@@ -1273,15 +1396,20 @@ private fun AppSelectorDialog(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
-    var apps by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
-    var selectedApp by remember { mutableStateOf<Pair<String, String>?>(null) }
+    var apps by remember { mutableStateOf<List<AppMetadata>>(emptyList()) }
+    var selectedApp by remember { mutableStateOf<AppMetadata?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var searchQuery by remember { mutableStateOf("") }
-    val sheetState = rememberModalBottomSheetState()
+    var showSystemApps by remember { mutableStateOf(false) }
+    var onlyLaunchable by remember { mutableStateOf(true) }
+    var showFilterMenu by remember { mutableStateOf(false) }
+    val sheetState = rememberBottomSheetState(SheetValue.Hidden)
 
-    val filteredApps = remember(apps, searchQuery) {
-        if (searchQuery.isBlank()) apps else apps.filter {
-            it.second.contains(searchQuery, ignoreCase = true)
+    val filteredApps = remember(apps, searchQuery, showSystemApps, onlyLaunchable) {
+        apps.filter { app ->
+            (searchQuery.isBlank() || app.label.contains(searchQuery, ignoreCase = true)) &&
+                    (showSystemApps || !app.isSystem) &&
+                    (!onlyLaunchable || app.isLaunchable)
         }
     }
 
@@ -1303,12 +1431,49 @@ private fun AppSelectorDialog(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text(
-                text = stringResource(R.string.select_app),
-                style = MaterialTheme.typography.headlineSmall,
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                textAlign = TextAlign.Center
-            )
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.select_app),
+                    style = MaterialTheme.typography.headlineSmall,
+                    modifier = Modifier.weight(1f),
+                    textAlign = TextAlign.Start
+                )
+
+                Box {
+                    IconButton(onClick = { showFilterMenu = true }) {
+                        Icon(Icons.Rounded.FilterList, contentDescription = "Filters")
+                    }
+                    DropdownMenu(
+                        expanded = showFilterMenu,
+                        onDismissRequest = { showFilterMenu = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Show System Apps") },
+                            onClick = {
+                                showSystemApps = !showSystemApps
+                                showFilterMenu = false
+                            },
+                            leadingIcon = {
+                                Checkbox(checked = showSystemApps, onCheckedChange = null)
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Only Launchable Apps") },
+                            onClick = {
+                                onlyLaunchable = !onlyLaunchable
+                                showFilterMenu = false
+                            },
+                            leadingIcon = {
+                                Checkbox(checked = onlyLaunchable, onCheckedChange = null)
+                            }
+                        )
+                    }
+                }
+            }
 
             OutlinedTextField(
                 value = searchQuery,
@@ -1350,10 +1515,10 @@ private fun AppSelectorDialog(
                         .fillMaxWidth()
                         .fillMaxHeight(0.6f)
                 ) {
-                    items(filteredApps) { (packageName, appName) ->
-                        val appIcon = rememberAppIcon(packageName, context)
+                    items(filteredApps) { app ->
+                        val appIcon = rememberAppIcon(app.packageName, context)
                         TextButton(
-                            onClick = { selectedApp = packageName to appName },
+                            onClick = { selectedApp = app },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp)
                         ) {
@@ -1379,13 +1544,17 @@ private fun AppSelectorDialog(
 
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = appName,
-                                        style = MaterialTheme.typography.bodyLarge
+                                        text = app.label,
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        textAlign = TextAlign.Start,
+                                        modifier = Modifier.fillMaxWidth()
                                     )
                                     Text(
-                                        text = packageName,
+                                        text = app.packageName,
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        textAlign = TextAlign.Start,
+                                        modifier = Modifier.fillMaxWidth()
                                     )
                                 }
                             }
@@ -1397,14 +1566,14 @@ private fun AppSelectorDialog(
     }
 
     if (selectedApp != null) {
-        val (packageName, appName) = selectedApp!!
+        val app = selectedApp!!
         LimitPickerDialog(
-            appName = appName,
+            appName = app.label,
             onConfirm = { minutes ->
-                onAppSelected(packageName, appName, minutes)
+                onAppSelected(app.packageName, app.label, minutes)
                 selectedApp = null
             },
-            packageName = packageName,
+            packageName = app.packageName,
             onDismiss = { selectedApp = null }
         )
     }
@@ -1423,7 +1592,7 @@ private fun LimitPickerDialog(
     val appIcon = rememberAppIcon(packageName, context)
     val presets = listOf(0, 5, 15, 30, 45, 60, 90)
     var minutes by remember { mutableIntStateOf(initialMinutes) }
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val sheetState = rememberBottomSheetState(SheetValue.Hidden)
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -1589,7 +1758,7 @@ private fun LimitPickerDialog(
     }
 }
 
-private fun loadAccessibleApps(context: android.content.Context): List<Pair<String, String>> {
+private fun loadAccessibleApps(context: Context): List<AppMetadata> {
     val pm = context.packageManager
 
     val launcherPackages = pm.queryIntentActivities(
@@ -1598,20 +1767,17 @@ private fun loadAccessibleApps(context: android.content.Context): List<Pair<Stri
         0
     ).map { it.activityInfo.packageName }.toSet()
 
-    val overlayPackages = pm.getInstalledPackages(android.content.pm.PackageManager.GET_PERMISSIONS)
-        .filter { pkgInfo ->
-            pkgInfo.requestedPermissions?.contains(android.Manifest.permission.SYSTEM_ALERT_WINDOW) == true
-        }
-        .map { it.packageName }
-        .toSet()
-
-    val accessible = launcherPackages + overlayPackages
-
-    return pm.getInstalledApplications(0)
+    return pm.getInstalledApplications(PackageManager.GET_META_DATA)
         .filter { it.packageName != context.packageName }
-        .filter { it.packageName in accessible }
-        .sortedBy { it.name }
-        .map { it.packageName to it.loadLabel(pm).toString() }
+        .sortedBy { it.loadLabel(pm).toString() }
+        .map { appInfo ->
+            AppMetadata(
+                packageName = appInfo.packageName,
+                label = appInfo.loadLabel(pm).toString(),
+                isSystem = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0,
+                isLaunchable = launcherPackages.contains(appInfo.packageName)
+            )
+        }
 }
 
 private fun formatTime(time: LocalTime): String {

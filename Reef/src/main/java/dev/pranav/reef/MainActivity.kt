@@ -14,20 +14,54 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.*
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.material.icons.rounded.EmojiNature
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -37,6 +71,11 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.core.content.edit
 import androidx.core.net.toUri
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -46,19 +85,41 @@ import androidx.navigation.toRoute
 import dev.pranav.reef.accessibility.FocusModeService
 import dev.pranav.reef.intro.AppIntroActivity
 import dev.pranav.reef.navigation.Screen
-import dev.pranav.reef.screens.*
+import dev.pranav.reef.screens.CreateRoutineScreen
+import dev.pranav.reef.screens.DailyLimitScreen
+import dev.pranav.reef.screens.FocusSessionDetailScreen
+import dev.pranav.reef.screens.FocusStatsScreen
+import dev.pranav.reef.screens.HomeContent
+import dev.pranav.reef.screens.MindfulLaunchAppsScreen
+import dev.pranav.reef.screens.MindfulLaunchScreen
+import dev.pranav.reef.screens.RoutinesScreen
+import dev.pranav.reef.screens.SettingsContent
+import dev.pranav.reef.screens.UsageScreenWrapper
+import dev.pranav.reef.screens.WebsiteBlocklistScreen
+import dev.pranav.reef.screens.WhitelistScreenWrapper
 import dev.pranav.reef.timer.TimerConfig
 import dev.pranav.reef.timer.TimerContent
 import dev.pranav.reef.timer.TimerStateManager
 import dev.pranav.reef.ui.ReefTheme
-import dev.pranav.reef.util.*
+import dev.pranav.reef.util.AndroidUtilities
+import dev.pranav.reef.util.AppLimits
+import dev.pranav.reef.util.MindfulLaunchManager
+import dev.pranav.reef.util.ScreenUsageHelper
+import dev.pranav.reef.util.Whitelist
+import dev.pranav.reef.util.applyDefaults
+import dev.pranav.reef.util.checkAndRequestMissingPermissions
+import dev.pranav.reef.util.isAccessibilityServiceEnabledForBlocker
+import dev.pranav.reef.util.isBlockerServiceOperational
+import dev.pranav.reef.util.prefs
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
-class MainActivity: ComponentActivity() {
+class MainActivity : ComponentActivity() {
     private var pendingFocusModeStart = false
     private var hasCheckedPermissions = false
     private var shouldNavigateToTimer = false
 
-    private val timerReceiver = object: BroadcastReceiver() {
+    private val timerReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             val left = intent.getStringExtra(FocusModeService.EXTRA_TIME_LEFT) ?: "00:00"
             currentTimeLeft = left
@@ -94,6 +155,7 @@ class MainActivity: ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        (application as App).initializeAfterUnlock()
         enableEdgeToEdge()
         applyDefaults()
         addExceptions()
@@ -119,9 +181,12 @@ class MainActivity: ComponentActivity() {
             val navBackStackEntry by navController.currentBackStackEntryAsState()
             val currentDestination = navBackStackEntry?.destination
             val showAccessibilityDialog = remember { mutableStateOf(false) }
+            var isZenMode by rememberSaveable { mutableStateOf(false) }
 
             val whitelistedCount =
                 remember { Whitelist.getWhitelistedLaunchableCount(launcherApps) }
+            val mindfulAppsCount = remember { MindfulLaunchManager.getMindfulApps().size }
+            val isMindfulLaunchEnabled = remember { MindfulLaunchManager.isEnabled() }
 
             val selectedNavIndex = remember(currentDestination) {
                 when {
@@ -133,13 +198,39 @@ class MainActivity: ComponentActivity() {
                 }
             }
 
-            val showBottomBar = remember(currentDestination) {
-                currentDestination?.hasRoute<Screen.Home>() == true ||
-                        currentDestination?.hasRoute<Screen.Usage>() == true ||
-                        currentDestination?.hasRoute<Screen.Timer>() == true ||
-                        currentDestination?.hasRoute<Screen.Settings>() == true ||
-                        currentDestination?.hasRoute<Screen.Whitelist>() == true ||
-                        currentDestination?.hasRoute<Screen.Routines>() == true
+            val showBottomBar = remember(currentDestination, isZenMode) {
+                !isZenMode && (
+                        currentDestination?.hasRoute<Screen.Home>() == true ||
+                                currentDestination?.hasRoute<Screen.Usage>() == true ||
+                                currentDestination?.hasRoute<Screen.Timer>() == true ||
+                                currentDestination?.hasRoute<Screen.Settings>() == true ||
+                                currentDestination?.hasRoute<Screen.Whitelist>() == true ||
+                                currentDestination?.hasRoute<Screen.Routines>() == true
+                        )
+            }
+
+            LaunchedEffect(timerState.isRunning, timerState.isPaused) {
+                if (!timerState.isRunning && !timerState.isPaused) {
+                    isZenMode = false
+                }
+            }
+
+            DisposableEffect(isZenMode) {
+                val insetsController =
+                    WindowCompat.getInsetsController(window, window.decorView)
+                if (isZenMode) {
+                    insetsController.hide(WindowInsetsCompat.Type.systemBars())
+                    insetsController.systemBarsBehavior =
+                        WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                } else {
+                    insetsController.show(WindowInsetsCompat.Type.systemBars())
+                }
+
+                onDispose {
+                    if (isZenMode) {
+                        insetsController.show(WindowInsetsCompat.Type.systemBars())
+                    }
+                }
             }
 
             LaunchedEffect(Unit) {
@@ -315,6 +406,7 @@ class MainActivity: ComponentActivity() {
                                     }
                                 },
                                 onNavigateToWebsiteBlocklist = { navController.navigate(Screen.WebsiteBlocklist) },
+                                onNavigateToMindfulLaunch = { navController.navigate(Screen.MindfulLaunch) },
                                 onNavigateToIntro = {
                                     startActivity(
                                         Intent(
@@ -330,6 +422,8 @@ class MainActivity: ComponentActivity() {
                                 currentTimeLeft = currentTimeLeft,
                                 currentTimerState = currentTimerState,
                                 whitelistedAppsCount = whitelistedCount,
+                                mindfulAppsCount = mindfulAppsCount,
+                                isMindfulLaunchEnabled = isMindfulLaunchEnabled,
                                 dailyUsageText = dailyUsageText
                             )
                         }
@@ -342,6 +436,8 @@ class MainActivity: ComponentActivity() {
                                 currentTimeLeft = currentTimeLeft,
                                 currentTimerState = currentTimerState,
                                 isStrictMode = timerState.isStrictMode,
+                                isZenMode = isZenMode,
+                                onZenModeChange = { isZenMode = it },
                                 onStartTimer = { config -> startFocusMode(config) },
                                 onPauseTimer = { pauseFocusMode() },
                                 onResumeTimer = { resumeFocusMode() },
@@ -472,29 +568,56 @@ class MainActivity: ComponentActivity() {
                         composable<Screen.WebsiteBlocklist> {
                             WebsiteBlocklistScreen(onBackPressed = { navController.popBackStack() })
                         }
+
+                        composable<Screen.MindfulLaunch> {
+                            MindfulLaunchScreen(
+                                onBackPressed = { navController.popBackStack() },
+                                onNavigateToApps = { navController.navigate(Screen.MindfulLaunchApps) }
+                            )
+                        }
+
+                        composable<Screen.MindfulLaunchApps> {
+                            MindfulLaunchAppsScreen(
+                                onBackPressed = { navController.popBackStack() }
+                            )
+                        }
                     }
 
                     if (showAccessibilityDialog.value) {
+                        val accessibilityEnabled =
+                            isAccessibilityServiceEnabledForBlocker()
                         AlertDialog(
                             onDismissRequest = { showAccessibilityDialog.value = false },
                             title = {
                                 Text(stringResource(R.string.accessibility_service))
                             },
                             text = {
-                                Text(stringResource(R.string.accessibility_service_description))
+                                Text(
+                                    stringResource(
+                                        if (accessibilityEnabled) {
+                                            R.string.accessibility_service_not_running_description
+                                        } else {
+                                            R.string.accessibility_service_description
+                                        }
+                                    )
+                                )
                             },
                             confirmButton = {
                                 TextButton(
                                     onClick = {
                                         showAccessibilityDialog.value = false
                                         startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-                                    }
+                                    },
+                                    shapes = ButtonDefaults.shapes()
                                 ) {
-                                    Text(stringResource(R.string.agree))
+                                    Text(stringResource(R.string.open_accessibility_settings))
                                 }
                             },
                             dismissButton = {
-                                TextButton(onClick = { showAccessibilityDialog.value = false }) {
+                                TextButton(
+                                    onClick = { showAccessibilityDialog.value = false },
+                                    shapes = ButtonDefaults.shapes()
+                                ) {
                                     Text(stringResource(R.string.cancel))
                                 }
                             }
@@ -600,9 +723,14 @@ class MainActivity: ComponentActivity() {
         super.onResume()
         if (!hasCheckedPermissions && !prefs.getBoolean("first_run", true)) {
             hasCheckedPermissions = true
-            checkAndRequestMissingPermissions()
+            lifecycleScope.launch {
+                delay(1_500)
+                if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                    checkAndRequestMissingPermissions()
+                }
+            }
         }
-        if (pendingFocusModeStart && isAccessibilityServiceEnabledForBlocker()) {
+        if (pendingFocusModeStart && isBlockerServiceOperational()) {
             pendingFocusModeStart = false
         }
     }

@@ -5,17 +5,29 @@ import android.app.Application
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.os.UserManager
 import android.util.Log
 import androidx.compose.material3.ColorScheme
-import androidx.work.*
-import dev.pranav.reef.accessibility.BlockerService
+import androidx.work.Configuration
+import androidx.work.Constraints
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
 import dev.pranav.reef.receivers.DailySummaryScheduler
 import dev.pranav.reef.services.routines.RoutineAlarmScheduler
 import dev.pranav.reef.services.routines.RoutineSessionManager
-import dev.pranav.reef.util.*
+import dev.pranav.reef.util.AppLimits
+import dev.pranav.reef.util.FocusStats
+import dev.pranav.reef.util.NotificationHelper
+import dev.pranav.reef.util.ReefWorker
+import dev.pranav.reef.util.WebsiteBlocklist
+import dev.pranav.reef.util.Whitelist
+import dev.pranav.reef.util.prefs
 import java.util.concurrent.TimeUnit
 
-class App: Application(), Configuration.Provider {
+class App : Application(), Configuration.Provider {
+    @Volatile
+    private var initializedAfterUnlock = false
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
@@ -25,24 +37,43 @@ class App: Application(), Configuration.Provider {
     override fun onCreate() {
         super.onCreate()
 
-        setupSafePreferences()
+        setupCrashHandler()
+        initializeAfterUnlock()
+    }
 
-        AppLimits.init(this)
-        Whitelist.init(this)
-        FocusStats.init(this)
-        WebsiteBlocklist.init(this)
+    fun initializeAfterUnlock(): Boolean {
+        if (initializedAfterUnlock) return true
 
-        scheduleWatcher(this)
-
-        RoutineSessionManager.evaluateAndSync(this)
-        NotificationHelper.syncRoutineNotification(this)
-        RoutineAlarmScheduler.scheduleAll(this, dev.pranav.reef.routine.Routines.getAll())
-
-        if (prefs.getBoolean("daily_summary", false)) {
-            DailySummaryScheduler.scheduleDailySummary(this)
+        val userManager = getSystemService(UserManager::class.java)
+        if (!userManager.isUserUnlocked) {
+            Log.i("ReefApp", "Deferring initialization until the user is unlocked")
+            return false
         }
 
-        setupCrashHandler()
+        synchronized(this) {
+            if (initializedAfterUnlock) return true
+
+            setupSafePreferences()
+
+            AppLimits.init(this)
+            Whitelist.init(this)
+            FocusStats.init(this)
+            WebsiteBlocklist.init(this)
+
+            scheduleWatcher(this)
+
+            RoutineSessionManager.evaluateAndSync(this)
+            NotificationHelper.syncRoutineNotification(this)
+            RoutineAlarmScheduler.scheduleAll(this, dev.pranav.reef.routine.Routines.getAll())
+
+            if (prefs.getBoolean("daily_summary", false)) {
+                DailySummaryScheduler.scheduleDailySummary(this)
+            }
+
+            initializedAfterUnlock = true
+        }
+
+        return true
     }
 
     private fun setupSafePreferences() {
@@ -62,16 +93,6 @@ class App: Application(), Configuration.Provider {
 
             val alarmManager = getSystemService(ALARM_SERVICE) as AlarmManager
             val currentTime = System.currentTimeMillis()
-
-            // Alarm to restart BlockerService
-            val serviceIntent = Intent(this, BlockerService::class.java)
-            val servicePendingIntent = PendingIntent.getService(
-                this,
-                111,
-                serviceIntent,
-                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-            )
-            alarmManager.set(AlarmManager.RTC_WAKEUP, currentTime + 1000, servicePendingIntent)
 
             // Alarm to show DebugActivity with error message
             val debugIntent = Intent(this, DebugActivity::class.java).apply {

@@ -27,13 +27,25 @@ import dev.pranav.reef.timer.PomodoroConfig
 import dev.pranav.reef.timer.PomodoroPhase
 import dev.pranav.reef.timer.TimerSessionState
 import dev.pranav.reef.timer.TimerStateManager
-import dev.pranav.reef.util.*
+import dev.pranav.reef.util.AndroidUtilities
 import dev.pranav.reef.util.AndroidUtilities.formatTime
-import kotlinx.coroutines.*
+import dev.pranav.reef.util.BLOCKER_CHANNEL_ID
+import dev.pranav.reef.util.FOCUS_MODE_CHANNEL_ID
+import dev.pranav.reef.util.FocusStats
+import dev.pranav.reef.util.isPrefsInitialized
+import dev.pranav.reef.util.prefs
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 
 @SuppressLint("MissingPermission")
-class FocusModeService: Service() {
+class FocusModeService : Service() {
 
     companion object {
         private const val NOTIFICATION_ID = 1
@@ -316,7 +328,7 @@ class FocusModeService: Service() {
     private fun startCountdown(timeMillis: Long) {
         countDownTimer?.cancel()
 
-        countDownTimer = object: CountDownTimer(timeMillis, 1000) {
+        countDownTimer = object : CountDownTimer(timeMillis, 1000) {
             override fun onTick(millisUntilFinished: Long) {
                 val state = TimerStateManager.state.value
                 if (!state.isPaused) {
@@ -733,7 +745,6 @@ class FocusModeService: Service() {
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setOngoing(true)
                 .setOnlyAlertOnce(true)
-                .setRequestPromotedOngoing(true)
                 .setCategory(Notification.CATEGORY_PROGRESS)
                 .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
         }
@@ -748,6 +759,9 @@ class FocusModeService: Service() {
             setStyle(notificationStyle!!.setProgress(calculateCumulativeProgress(timeLeft)))
             setWhen(System.currentTimeMillis() + timeLeft)
             setShortCriticalText(chipText)
+            setRequestPromotedOngoing(
+                prefs.getBoolean("prominent_focus_notification", true)
+            )
 
             clearActions()
 

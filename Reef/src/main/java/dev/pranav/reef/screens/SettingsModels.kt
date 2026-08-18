@@ -7,8 +7,6 @@ sealed class SettingsScreenRoute {
     data object Main: SettingsScreenRoute()
     data object Pomodoro: SettingsScreenRoute()
     data object Notifications: SettingsScreenRoute()
-    data object MindfulLaunch: SettingsScreenRoute()
-    data object MindfulLaunchApps: SettingsScreenRoute()
 }
 
 data class SettingsMenuItem(

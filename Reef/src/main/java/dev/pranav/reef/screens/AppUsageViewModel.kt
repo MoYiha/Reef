@@ -6,11 +6,17 @@ import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Process
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.State
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.patrykandpatrick.vico.compose.cartesian.data.CartesianChartModelProducer
-import com.patrykandpatrick.vico.compose.cartesian.data.columnSeries
+import com.patrykandpatrick.vico.compose.cartesian.data.columnModel
 import dev.pranav.reef.util.ScreenUsageHelper
 import dev.pranav.reef.util.Whitelist
 import kotlinx.coroutines.Dispatchers
@@ -42,7 +48,7 @@ class AppUsageViewModel(
     private val launcherApps: LauncherApps,
     private val packageManager: PackageManager,
     private val packageName: String
-): ViewModel() {
+) : ViewModel() {
 
     val modelProducer = CartesianChartModelProducer()
 
@@ -171,9 +177,7 @@ class AppUsageViewModel(
 
                 if (weeklyData.any { it.totalUsageHours > 0 }) {
                     modelProducer.runTransaction {
-                        columnSeries {
-                            series(weeklyData.map { (it.totalUsageHours * 60).toLong() })
-                        }
+                        columnModel { series(weeklyData.map { (it.totalUsageHours * 60).toLong() }) }
                     }
                 }
             }

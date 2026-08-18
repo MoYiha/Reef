@@ -1,11 +1,10 @@
 package dev.pranav.reef.screens
 
+import android.content.pm.ApplicationInfo
 import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
-import android.os.Build
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.pranav.reef.util.Whitelist
@@ -17,13 +16,19 @@ class WhitelistViewModel(
     private val launcherApps: LauncherApps,
     private val packageManager: PackageManager,
     private val currentPackageName: String
-): ViewModel() {
+) : ViewModel() {
 
     private val _uiState = mutableStateOf<AllowedAppsState>(AllowedAppsState.Loading)
     private var allApps = listOf<WhitelistedApp>()
 
     private val _searchQuery = mutableStateOf("")
     val searchQuery: State<String> = _searchQuery
+
+    private val _showSystemApps = mutableStateOf(false)
+    val showSystemApps: State<Boolean> = _showSystemApps
+
+    private val _onlyLaunchable = mutableStateOf(true)
+    val onlyLaunchable: State<Boolean> = _onlyLaunchable
 
     val uiState: State<AllowedAppsState> = _uiState
 
@@ -38,47 +43,31 @@ class WhitelistViewModel(
                 val allAppsList = mutableListOf<WhitelistedApp>()
 
                 profiles.forEach { userHandle ->
-                    // Fetch apps for the specific profile (Personal, Work, etc.)
                     val launcherActivities = launcherApps.getActivityList(null, userHandle)
-                        .distinctBy { it.applicationInfo.packageName }
+                    val launchablePackages =
+                        launcherActivities.map { it.applicationInfo.packageName }.toSet()
 
-                    val profileSystemApps =
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
-                            launcherApps.getPreInstalledSystemPackages(userHandle)
-                                .mapNotNull { pkg ->
-                                    runCatching {
-                                        packageManager.getApplicationInfo(
-                                            pkg,
-                                            0
-                                        )
-                                    }.getOrNull()
-                                }
-                        } else {
-                            emptyList()
+                    val allInstalledApps =
+                        packageManager.getInstalledApplications(PackageManager.GET_META_DATA)
+
+                    val combined = allInstalledApps
+                        .filter { it.packageName != currentPackageName }
+                        .map { appInfo ->
+                            val isLaunchable = launchablePackages.contains(appInfo.packageName)
+                            val isSystem = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
+
+                            WhitelistedApp(
+                                packageName = appInfo.packageName,
+                                label = appInfo.loadLabel(packageManager).toString(),
+                                isWhitelisted = Whitelist.isWhitelisted(appInfo.packageName),
+                                user = userHandle,
+                                isSystemApp = isSystem,
+                                isLaunchable = isLaunchable
+                            )
                         }
-
-                    val combined =
-                        (launcherActivities.map { it.applicationInfo } + profileSystemApps)
-                            .distinctBy { it.packageName }
-                            .filter { it.packageName != currentPackageName }
-                            .map { appInfo ->
-                                val originalIcon = appInfo.loadIcon(packageManager)
-
-                                // Wrap icon with the "Work Badge" if it belongs to a managed profile
-                                val badgedIcon =
-                                    packageManager.getUserBadgedIcon(originalIcon, userHandle)
-
-                                WhitelistedApp(
-                                    packageName = appInfo.packageName,
-                                    label = appInfo.loadLabel(packageManager).toString(),
-                                    icon = badgedIcon.toBitmap().asImageBitmap(),
-                                    isWhitelisted = Whitelist.isWhitelisted(appInfo.packageName),
-                                    user = userHandle
-                                )
-                            }
                     allAppsList.addAll(combined)
                 }
-                allAppsList.sortedBy { it.label }
+                allAppsList.distinctBy { it.packageName + it.user.hashCode() }.sortedBy { it.label }
             }
             allApps = apps
             updateFilteredList()
@@ -90,15 +79,30 @@ class WhitelistViewModel(
         updateFilteredList()
     }
 
+    fun toggleSystemApps() {
+        _showSystemApps.value = !_showSystemApps.value
+        updateFilteredList()
+    }
+
+    fun toggleOnlyLaunchable() {
+        _onlyLaunchable.value = !_onlyLaunchable.value
+        updateFilteredList()
+    }
+
     private fun updateFilteredList() {
         val query = _searchQuery.value
-        val filtered = if (query.isEmpty()) {
-            allApps
-        } else {
-            allApps.filter {
-                it.label.contains(query, ignoreCase = true) ||
-                        it.packageName.contains(query, ignoreCase = true)
-            }
+        val showSystem = _showSystemApps.value
+        val onlyLaunch = _onlyLaunchable.value
+
+        val filtered = allApps.filter { app ->
+            val matchesQuery = query.isEmpty() ||
+                    app.label.contains(query, ignoreCase = true) ||
+                    app.packageName.contains(query, ignoreCase = true)
+
+            val matchesSystem = showSystem || !app.isSystemApp
+            val matchesLaunchable = !onlyLaunch || app.isLaunchable
+
+            matchesQuery && matchesSystem && matchesLaunchable
         }
         _uiState.value = AllowedAppsState.Success(filtered)
     }

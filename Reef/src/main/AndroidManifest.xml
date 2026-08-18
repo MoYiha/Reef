@@ -38,7 +38,6 @@
         android:appCategory="productivity"
         android:theme="@android:style/Theme.DeviceDefault.Wallpaper.NoTitleBar"
         android:enableOnBackInvokedCallback="true"
-        android:directBootAware="true"
         android:localeConfig="@xml/locales_config"
         tools:targetApi="33">
 
@@ -70,7 +69,6 @@
 
         <service
             android:name=".accessibility.BlockerService"
-            android:directBootAware="true"
             android:exported="true"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
             android:foregroundServiceType="specialUse"
@@ -94,24 +92,19 @@
 
         <service
             android:name=".accessibility.RoutinesService"
-            android:directBootAware="true"
             android:exported="false" />
 
         <receiver
             android:name=".receivers.BootReceiver"
-            android:directBootAware="true"
-            android:exported="true">
+            android:exported="false">
             <intent-filter>
-                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
-                <action android:name="android.intent.action.USER_PRESENT" />
             </intent-filter>
         </receiver>
 
         <receiver
             android:name=".receivers.RoutineAlarmReceiver"
-            android:directBootAware="true"
             android:exported="false" />
 
         <provider

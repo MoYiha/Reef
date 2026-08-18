@@ -2,19 +2,73 @@ package dev.pranav.reef.screens
 
 import android.content.Intent
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.*
-import androidx.compose.foundation.*
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.EventNote
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Waves
-import androidx.compose.material.icons.rounded.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.rounded.BarChart
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.Forum
+import androidx.compose.material.icons.rounded.Groups
+import androidx.compose.material.icons.rounded.HourglassEmpty
+import androidx.compose.material.icons.rounded.Pause
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Public
+import androidx.compose.material.icons.rounded.Timer
+import androidx.compose.material.icons.rounded.VolunteerActivism
+import androidx.compose.material.icons.rounded.WarningAmber
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LargeTopAppBar
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberTopAppBarState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -33,9 +87,11 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.edit
 import androidx.core.net.toUri
 import dev.pranav.reef.R
+import dev.pranav.reef.accessibility.BlockerService
 import dev.pranav.reef.timer.TimerStateManager
 import dev.pranav.reef.ui.Typography
 import dev.pranav.reef.util.isAccessibilityServiceEnabledForBlocker
+import dev.pranav.reef.util.isBlockerServiceOperational
 import dev.pranav.reef.util.prefs
 import kotlinx.coroutines.delay
 import kotlin.time.Duration.Companion.milliseconds
@@ -48,6 +104,7 @@ fun HomeContent(
     onNavigateToRoutines: () -> Unit,
     onNavigateToWhitelist: () -> Unit,
     onNavigateToWebsiteBlocklist: () -> Unit,
+    onNavigateToMindfulLaunch: () -> Unit,
     onNavigateToIntro: () -> Unit,
     onRequestAccessibility: () -> Unit,
     @Suppress("UNUSED_PARAMETER") slideProgress: Float = 0f,
@@ -55,12 +112,16 @@ fun HomeContent(
     currentTimeLeft: String = "00:00",
     currentTimerState: String = "FOCUS",
     whitelistedAppsCount: Int = 0,
+    mindfulAppsCount: Int = 0,
+    isMindfulLaunchEnabled: Boolean = false,
     dailyUsageText: String = "0m today"
 ) {
     val context = LocalContext.current
     val timerState by TimerStateManager.state.collectAsState()
+    val blockerConnected by BlockerService.connectionState.collectAsState()
     var showDiscordDialog by remember { mutableStateOf(false) }
     var showDonateDialog by remember { mutableStateOf(false) }
+    var showServiceHealthWarning by remember { mutableStateOf(false) }
 
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(
         rememberTopAppBarState()
@@ -76,6 +137,17 @@ fun HomeContent(
             } else if (prefs.getBoolean("show_dialog", false)) {
                 showDonateDialog = true
             }
+        }
+    }
+
+    LaunchedEffect(blockerConnected) {
+        if (blockerConnected) {
+            showServiceHealthWarning = false
+        } else {
+            delay(1_500)
+            showServiceHealthWarning =
+                context.isAccessibilityServiceEnabledForBlocker() &&
+                        !BlockerService.isConnected
         }
     }
 
@@ -112,10 +184,48 @@ fun HomeContent(
         ) {
             Spacer(Modifier.height(4.dp))
 
+            if (showServiceHealthWarning) {
+                Card(
+                    onClick = onRequestAccessibility,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Icon(
+                            Icons.Rounded.WarningAmber,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.accessibility_service_not_running),
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                            Text(
+                                text = stringResource(
+                                    R.string.accessibility_service_not_running_description
+                                ),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                        }
+                    }
+                }
+            }
+
             FocusHeader(
                 onSlideProgress = onSlideProgressChange,
                 onClick = {
-                    if (context.isAccessibilityServiceEnabledForBlocker()) {
+                    if (context.isBlockerServiceOperational()) {
                         onNavigateToTimer()
                     } else {
                         onRequestAccessibility()
@@ -214,7 +324,7 @@ fun HomeContent(
                 modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
             )
 
-            val totalRows = 3
+            val totalRows = 4
             val isTimerActive = timerState.isRunning || timerState.isPaused
             val stateText = when (currentTimerState) {
                 "FOCUS" -> stringResource(R.string.focus_label)
@@ -243,6 +353,26 @@ fun HomeContent(
                 )
 
                 HomeNavigationRow(
+                    title = stringResource(R.string.mindful_launch),
+                    subtitle = if (!isMindfulLaunchEnabled) {
+                        stringResource(R.string.disabled)
+                    } else {
+                        LocalResources.current.getQuantityString(
+                            R.plurals.mindful_apps_count,
+                            mindfulAppsCount,
+                            mindfulAppsCount
+                        )
+                    },
+                    icon = Icons.Rounded.HourglassEmpty,
+                    index = 2,
+                    totalItems = totalRows,
+                    iconTint = if (isMindfulLaunchEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                        alpha = 0.5f
+                    ),
+                    onClick = onNavigateToMindfulLaunch
+                )
+
+                HomeNavigationRow(
                     title = if (isTimerActive) stateText else stringResource(R.string.pomodoro),
                     subtitle = if (isTimerActive) {
                         if (timerState.isPaused) stringResource(
@@ -254,7 +384,7 @@ fun HomeContent(
                         stringResource(R.string.start_focus_session)
                     },
                     icon = if (timerState.isPaused) Icons.Rounded.Pause else if (timerState.isRunning) Icons.Rounded.PlayArrow else Icons.Rounded.Timer,
-                    index = 2,
+                    index = 3,
                     totalItems = totalRows,
                     titleColor = if (isTimerActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                     iconTint = if (isTimerActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
@@ -548,7 +678,7 @@ private fun CommunityDialog(
             )
         },
         confirmButton = {
-            Button(onClick = onJoin) {
+            Button(onClick = onJoin, shapes = ButtonDefaults.shapes()) {
                 Icon(
                     Icons.Rounded.Forum,
                     contentDescription = null,
@@ -559,7 +689,7 @@ private fun CommunityDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) {
                 Text(stringResource(R.string.maybe_later))
             }
         }
@@ -601,7 +731,7 @@ private fun DonateDialog(
             }
         },
         confirmButton = {
-            Button(onClick = onSupport) {
+            Button(onClick = onSupport, shapes = ButtonDefaults.shapes()) {
                 Icon(
                     Icons.Rounded.VolunteerActivism,
                     contentDescription = null,
@@ -612,7 +742,7 @@ private fun DonateDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) {
                 Text(stringResource(R.string.maybe_later))
             }
         }

@@ -9,14 +9,39 @@ import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.CheckCircle
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MediumTopAppBar
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -27,13 +52,14 @@ import androidx.core.app.ActivityCompat
 import androidx.core.net.toUri
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import dev.pranav.reef.accessibility.BlockerService
 import dev.pranav.reef.ui.ReefTheme
 import dev.pranav.reef.util.PermissionStatus
 import dev.pranav.reef.util.PermissionType
 import dev.pranav.reef.util.applyDefaults
 import dev.pranav.reef.util.checkAllPermissions
 
-class PermissionsCheckActivity: ComponentActivity() {
+class PermissionsCheckActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         applyDefaults()
@@ -57,6 +83,15 @@ fun PermissionsScreen(onBackClick: () -> Unit) {
     val context = LocalContext.current
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     var permissions by remember { mutableStateOf(emptyList<PermissionStatus>()) }
+    val blockerConnected by BlockerService.connectionState.collectAsState()
+
+    LaunchedEffect(blockerConnected) {
+        val updatedPermissions = context.checkAllPermissions()
+        permissions = updatedPermissions
+        if (updatedPermissions.all { it.isGranted }) {
+            onBackClick()
+        }
+    }
 
     // Refresh permissions on resume
     DisposableEffect(lifecycleOwner) {
@@ -80,7 +115,7 @@ fun PermissionsScreen(onBackClick: () -> Unit) {
             MediumTopAppBar(
                 title = { Text(stringResource(R.string.required_permissions)) },
                 navigationIcon = {
-                    IconButton(onClick = onBackClick) {
+                    IconButton(onClick = onBackClick, shapes = IconButtonDefaults.shapes()) {
                         Icon(
                             Icons.AutoMirrored.Rounded.ArrowBack,
                             contentDescription = stringResource(R.string.back)
@@ -200,7 +235,8 @@ fun PermissionItem(
                 Spacer(modifier = Modifier.height(16.dp))
                 Button(
                     onClick = onGrantClick,
-                    modifier = Modifier.align(Alignment.End)
+                    modifier = Modifier.align(Alignment.End),
+                    shapes = ButtonDefaults.shapes()
                 ) {
                     Text(stringResource(R.string.grant))
                 }

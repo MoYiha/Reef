@@ -3,6 +3,7 @@ package dev.pranav.reef.util
 import android.Manifest
 import android.app.Activity
 import android.app.AppOpsManager
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -12,17 +13,23 @@ import android.provider.Settings
 import androidx.core.content.ContextCompat
 import dev.pranav.reef.PermissionsCheckActivity
 import dev.pranav.reef.R
+import dev.pranav.reef.accessibility.BlockerService
 
 
 fun Context.isAccessibilityServiceEnabledForBlocker(): Boolean {
-    val accessibilityServiceName = "$packageName/$packageName.accessibility.BlockerService"
-    val serviceNameUncommon = "$packageName/.accessibility.BlockerService"
     val enabledServices = Settings.Secure.getString(
         contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
     )
-    return (enabledServices?.contains(accessibilityServiceName) == true) || (enabledServices?.contains(
-        serviceNameUncommon
-    ) == true)
+    val blockerComponent = ComponentName(this, BlockerService::class.java)
+
+    return enabledServices
+        ?.split(':')
+        ?.mapNotNull(ComponentName::unflattenFromString)
+        ?.any { it == blockerComponent } == true
+}
+
+fun Context.isBlockerServiceOperational(): Boolean {
+    return isAccessibilityServiceEnabledForBlocker() && BlockerService.isConnected
 }
 
 fun Context.hasUsageStatsPermission(): Boolean {
@@ -79,13 +86,19 @@ data class PermissionStatus(
 
 fun Context.checkAllPermissions(): List<PermissionStatus> {
     val permissions = mutableListOf<PermissionStatus>()
+    val accessibilityEnabled = isAccessibilityServiceEnabledForBlocker()
+    val accessibilityOperational = accessibilityEnabled && BlockerService.isConnected
 
     permissions.add(
         PermissionStatus(
             type = PermissionType.ACCESSIBILITY,
-            isGranted = isAccessibilityServiceEnabledForBlocker(),
+            isGranted = accessibilityOperational,
             title = getString(R.string.accessibility_service_name),
-            description = getString(R.string.accessibility_service_description)
+            description = if (accessibilityEnabled && !BlockerService.isConnected) {
+                getString(R.string.accessibility_service_not_running_description)
+            } else {
+                getString(R.string.accessibility_service_description)
+            }
         )
     )
 

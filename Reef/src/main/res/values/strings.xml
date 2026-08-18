@@ -4,6 +4,10 @@
     <string name="app_description">Reef is an open source productivity app designed to help you reduce your screen time and improve your productivity.</string>
     <string name="accessibility_service">Accessibility Service</string>
     <string name="accessibility_service_description">We use accessibility service to block distracting apps and help you focus on work.</string>
+    <string name="accessibility_service_not_running">Reef service isn’t running</string>
+    <string name="accessibility_service_not_running_description">Android shows Reef as enabled, but the service is not connected. Turn Reef off and on again in Accessibility settings.</string>
+    <string name="accessibility_service_disabled_title">Reef Accessibility is disabled</string>
+    <string name="open_accessibility_settings">Open Accessibility settings</string>
     <string name="accessibility_service_app_limit">We use accessibility service to enforce per-app screen time limits.</string>
     <string name="agree">Agree</string>
     <string name="time_remaining">Time Remaining: %1$s</string>
@@ -145,7 +149,18 @@
     <string name="daily_summary_message">You spent %1$s on your phone today</string>
     <string name="limit_warnings">Limit Warnings</string>
     <string name="limit_warnings_description">Warn when approaching app time limits</string>
+    <string name="prominent_focus_notification">Prominent Focus Notification</string>
+    <string name="prominent_focus_notification_description">Show the focus timer prominently. Android still requires a basic notification while focus mode is running.</string>
+    <string name="focus_ends_at">Focus will end at %1$s</string>
     <string name="general_section">General</string>
+
+    <string name="disabled">Disabled</string>
+    <string name="enabled">Enabled</string>
+    <string name="manage_mindful_launch">Manage Mindful Launch</string>
+    <plurals name="mindful_apps_count">
+        <item quantity="one">%1$d app protected</item>
+        <item quantity="other">%1$d apps protected</item>
+    </plurals>
 
     <!-- Routine Activity strings -->
     <string name="edit_routine">Edit Routine</string>
@@ -243,7 +258,11 @@
 
     <!-- Timer Activity strings -->
     <string name="focus_mode_title">Focus Mode</string>
+    <string name="quick_picks">Quick picks</string>
+    <string name="enter_zen_mode">Enter Zen mode</string>
+    <string name="exit_zen_mode">Exit Zen mode</string>
     <string name="timer_tab">Timer</string>
+    <string name="count_up_tab">Count Up</string>
     <string name="pomodoro_tab">Pomodoro</string>
     <string name="increase_hours">Increase Hours</string>
     <string name="increase_minutes">Increase Minutes</string>
@@ -427,6 +446,15 @@
     <string name="mindful_launch_warning">Custom Warning Message</string>
     <string name="mindful_launch_warning_hint">e.g., Take a deep breath. Do you really need to open this?</string>
     <string name="mindful_launch_limit">Daily Launch Limit</string>
+    <string name="mindful_launch_customize_app">Customize for this app</string>
+    <string name="mindful_launch_uses_defaults">Uses global settings • tap to customize</string>
+    <string name="mindful_launch_custom_summary">%1$d sec delay • %2$s</string>
+    <string name="mindful_launch_limit_summary">%1$d launches/day</string>
+    <string name="mindful_launch_no_limit">No daily limit</string>
+    <string name="mindful_launch_app_settings">Mindful settings for %1$s</string>
+    <string name="mindful_launch_app_settings_description">Override the global delay and launch limit for this app.</string>
+    <string name="mindful_launch_delay_seconds">Delay: %1$d seconds</string>
+    <string name="use_global_settings">Use global settings</string>
     <string name="enable_launch_limit">Limit Daily Launches</string>
     <string name="launch_limit_count">Daily Launch Limit Count</string>
     <string name="launches_suffix">launches</string>

@@ -15,12 +15,24 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.*
+import androidx.compose.material.icons.rounded.AccessibilityNew
+import androidx.compose.material.icons.rounded.BatteryChargingFull
+import androidx.compose.material.icons.rounded.DoNotDisturbOn
+import androidx.compose.material.icons.rounded.HourglassTop
+import androidx.compose.material.icons.rounded.NotificationsActive
+import androidx.compose.material.icons.rounded.QueryStats
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -30,6 +42,7 @@ import androidx.core.net.toUri
 import dev.pranav.appintro.AppIntro
 import dev.pranav.appintro.IntroPage
 import dev.pranav.reef.R
+import dev.pranav.reef.accessibility.BlockerService
 import dev.pranav.reef.routine.Routines
 import dev.pranav.reef.ui.ReefTheme
 import dev.pranav.reef.util.hasDndPermission
@@ -37,7 +50,7 @@ import dev.pranav.reef.util.hasUsageStatsPermission
 import dev.pranav.reef.util.isAccessibilityServiceEnabledForBlocker
 import dev.pranav.reef.util.prefs
 
-class AppIntroActivity: ComponentActivity() {
+class AppIntroActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -60,6 +73,7 @@ fun AppIntroScreen() {
     val context = LocalContext.current
     val activity = context as? ComponentActivity
     val powerManager = remember { context.getSystemService(Context.POWER_SERVICE) as PowerManager }
+    val blockerConnected by BlockerService.connectionState.collectAsState()
 
     val requestPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -74,6 +88,12 @@ fun AppIntroScreen() {
 
     var showAccessibilityDialog by remember { mutableStateOf(false) }
     var showUsageDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(blockerConnected) {
+        if (blockerConnected) {
+            showAccessibilityDialog = false
+        }
+    }
 
     val pages = listOfNotNull(
         // 1. Welcome Slide
@@ -94,7 +114,7 @@ fun AppIntroScreen() {
             backgroundColor = Color(0xFFFF3D00),
             contentColor = Color.White,
             onNext = {
-                if (!context.isAccessibilityServiceEnabledForBlocker()) {
+                if (!context.isAccessibilityServiceEnabledForBlocker() || !blockerConnected) {
                     showAccessibilityDialog = true
                     false
                 } else true
@@ -199,20 +219,32 @@ fun AppIntroScreen() {
                 Text(stringResource(R.string.accessibility_service))
             },
             text = {
-                Text(stringResource(R.string.accessibility_service_description))
+                Text(
+                    stringResource(
+                        if (context.isAccessibilityServiceEnabledForBlocker()) {
+                            R.string.accessibility_service_not_running_description
+                        } else {
+                            R.string.accessibility_service_description
+                        }
+                    )
+                )
             },
             confirmButton = {
                 TextButton(
                     onClick = {
                         showAccessibilityDialog = false
                         context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-                    }
+                    },
+                    shapes = ButtonDefaults.shapes()
                 ) {
-                    Text(stringResource(R.string.agree))
+                    Text(stringResource(R.string.open_accessibility_settings))
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showAccessibilityDialog = false }) {
+                TextButton(
+                    onClick = { showAccessibilityDialog = false },
+                    shapes = ButtonDefaults.shapes()
+                ) {
                     Text(stringResource(R.string.cancel))
                 }
             }
@@ -233,13 +265,17 @@ fun AppIntroScreen() {
                     onClick = {
                         showUsageDialog = false
                         context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
-                    }
+                    },
+                    shapes = ButtonDefaults.shapes()
                 ) {
                     Text(stringResource(R.string.agree))
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showUsageDialog = false }) {
+                TextButton(
+                    onClick = { showUsageDialog = false },
+                    shapes = ButtonDefaults.shapes()
+                ) {
                     Text(stringResource(R.string.cancel))
                 }
             }

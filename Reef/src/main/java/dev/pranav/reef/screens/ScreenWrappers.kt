@@ -5,7 +5,12 @@ import android.content.Context
 import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.material3.*
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MediumTopAppBar
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -30,9 +35,9 @@ fun UsageScreenWrapper(
 ) {
     val viewModel: AppUsageViewModel = viewModel(
         key = "app_usage_viewmodel",
-        factory = object: ViewModelProvider.Factory {
+        factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
-            override fun <T: ViewModel> create(modelClass: Class<T>): T =
+            override fun <T : ViewModel> create(modelClass: Class<T>): T =
                 AppUsageViewModel(
                     context,
                     usageStatsManager,
@@ -75,9 +80,9 @@ fun WhitelistScreenWrapper(
     currentPackageName: String
 ) {
     val viewModel: WhitelistViewModel = viewModel(
-        factory = object: ViewModelProvider.Factory {
+        factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
-            override fun <T: ViewModel> create(modelClass: Class<T>): T =
+            override fun <T : ViewModel> create(modelClass: Class<T>): T =
                 WhitelistViewModel(launcherApps, packageManager, currentPackageName) as T
         }
     )
@@ -87,6 +92,10 @@ fun WhitelistScreenWrapper(
         uiState = viewModel.uiState.value,
         onToggle = viewModel::toggleWhitelist,
         searchQuery = viewModel.searchQuery.value,
-        onSearchQueryChange = viewModel::onSearchQueryChange
+        onSearchQueryChange = viewModel::onSearchQueryChange,
+        showSystemApps = viewModel.showSystemApps.value,
+        onlyLaunchable = viewModel.onlyLaunchable.value,
+        onToggleSystemApps = viewModel::toggleSystemApps,
+        onToggleOnlyLaunchable = viewModel::toggleOnlyLaunchable
     )
 }
